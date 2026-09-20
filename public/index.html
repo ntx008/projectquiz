@@ -985,6 +985,7 @@
             score: 0,
             isAnswered: false,
             lastChoice: -1,
+            selectedChoice: -1,    // ตัวเลือกที่กดแล้วแต่ยังไม่ยืนยัน
             cachedLeaderboard: null,
 
             initCache() {
@@ -1174,6 +1175,7 @@
                 this.score = 0;
                 this.isAnswered = false;
                 this.lastChoice = -1;
+                this.selectedChoice = -1;
                 this.screenState = "game";
                 if (window.logFirebaseEvent) {
                     window.logFirebaseEvent('quiz_select_difficulty', { difficulty: this.currentDifficulty });
@@ -1374,21 +1376,31 @@
                 PhoneOS.renderAppContent();
             },
 
+            // Step 1: ผู้เล่นกดเลือกตัวเลือก (แค่ highlight ยังไม่เฉลย)
+            selectChoice(idx) {
+                if (this.isAdmin()) return;
+                if (this.isAnswered || !this.activeQuestions.length) return;
+                this.selectedChoice = idx;
+                PhoneOS.renderAppContent();
+            },
+
+            // Step 2: กดปุ่มยืนยัน → ค่อยเฉลย
             answer(idx) {
                 if (this.isAdmin()) return;
                 if (this.isAnswered || !this.activeQuestions.length) return;
+                if (this.selectedChoice < 0) return; // ยังไม่เลือกตัวเลือก
                 this.isAnswered = true;
-                this.lastChoice = idx;
+                this.lastChoice = this.selectedChoice;
                 const q = this.activeQuestions[this.currentIndex];
-                if (idx === q.a) {
+                if (this.lastChoice === q.a) {
                     this.score++; // ตอบถูกได้ 1 คะแนน
                 }
                 if (window.logFirebaseEvent) {
                     window.logFirebaseEvent('quiz_answer', {
                         difficulty: this.currentDifficulty,
                         q_index: this.currentIndex,
-                        choice: idx,
-                        is_correct: (idx === q.a)
+                        choice: this.lastChoice,
+                        is_correct: (this.lastChoice === q.a)
                     });
                 }
                 PhoneOS.renderAppContent();
@@ -1398,6 +1410,7 @@
                 if (!this.isAnswered) return;
                 this.isAnswered = false;
                 this.lastChoice = -1;
+                this.selectedChoice = -1;
                 if (this.currentIndex + 1 < this.activeQuestions.length) {
                     this.currentIndex++;
                 } else {
@@ -1665,16 +1678,22 @@
                 let choicesHtml = "";
                 q.c.forEach((choice, i) => {
                     let cls = "quiz-choice-btn";
+                    let extraStyle = "";
                     if (this.isAnswered) {
+                        // แสดงผลหลังยืนยันแล้ว
                         if (i === q.a) cls += " choice-correct";
                         else if (i === this.lastChoice) cls += " choice-wrong";
+                    } else if (i === this.selectedChoice) {
+                        // ผู้เล่นเลือกแล้วแต่ยังไม่กดยืนยัน → highlight สีฟ้า
+                        extraStyle = "border: 2px solid #38bdf8; background: rgba(56,189,248,0.15); color:#e0f2fe;";
                     }
-                    const clickAttr = !this.isAnswered ? `onclick='QuizEngine.answer(${i})'` : "";
-                    choicesHtml += `<button class='${cls}' ${clickAttr}>${choice}</button>`;
+                    const clickAttr = !this.isAnswered ? `onclick='QuizEngine.selectChoice(${i})'` : "";
+                    choicesHtml += `<button class='${cls}' style='${extraStyle}' ${clickAttr}>${choice}</button>`;
                 });
 
                 let explanationHtml = "";
                 let nextBtnHtml = "";
+                let confirmBtnHtml = "";
                 if (this.isAnswered) {
                     const isCorrect = (this.lastChoice === q.a);
                     const fbColor = isCorrect ? "#ff2a85" : "#f43f5e";
@@ -1686,6 +1705,25 @@
                         </div>
                     `;
                     nextBtnHtml = `<button class='btn-next-question' onclick='QuizEngine.next()'>ข้อถัดไป ➔</button>`;
+                } else if (this.selectedChoice >= 0) {
+                    // เลือกแล้วแต่ยังไม่กดยืนยัน
+                    confirmBtnHtml = `
+                        <button onclick='QuizEngine.answer()' style='
+                            width:100%; padding:13px; margin-top:10px;
+                            background:linear-gradient(135deg, #0ea5e9, #0284c7);
+                            color:#fff; border:none; border-radius:12px;
+                            font-size:14px; font-weight:800; cursor:pointer;
+                            box-shadow: 0 0 18px rgba(14,165,233,0.5);
+                            letter-spacing:0.5px;
+                        '>✅ ยืนยันคำตอบ</button>
+                    `;
+                } else {
+                    // ยังไม่เลือกตัวเลือกเลย
+                    confirmBtnHtml = `
+                        <div style='text-align:center; color:#64748b; font-size:12px; margin-top:10px; padding:10px;'>
+                            👆 เลือกตัวเลือกก่อน แล้วกดยืนยันคำตอบ
+                        </div>
+                    `;
                 }
 
                 const diffBadge = this.currentDifficulty === 'easy'
@@ -1715,6 +1753,7 @@
                             ${choicesHtml}
                         </div>
 
+                        ${confirmBtnHtml}
                         ${explanationHtml}
                         ${nextBtnHtml}
                     </div>
