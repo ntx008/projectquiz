@@ -177,6 +177,21 @@ public class PhoneController {
                     return true;
                 }
             }
+            case "quiz_delete_question" -> {
+                App app = phone.getCurrentApp();
+                if (app instanceof com.quiz.oop.model.app.QuizApp quiz) {
+                    String[] parts = param.split("\\|", -1);
+                    if (parts.length >= 2) {
+                        String diff = parts[0];
+                        try {
+                            int idx = Integer.parseInt(parts[1]);
+                            quiz.adminDeleteQuestion(diff, idx);
+                            phone.addNotification("Admin ลบข้อสอบออกจากระบบสำเร็จ");
+                            return true;
+                        } catch (NumberFormatException ignored) {}
+                    }
+                }
+            }
             default -> {
                 return false;
             }

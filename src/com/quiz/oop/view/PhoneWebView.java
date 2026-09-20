@@ -715,7 +715,8 @@ public class PhoneWebView {
                         setDoc, 
                         getDoc, 
                         collection, 
-                        addDoc 
+                        addDoc,
+                        deleteDoc 
                     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
                     // Your web app's Firebase configuration
@@ -821,6 +822,21 @@ public class PhoneWebView {
                                 return { success: true, id: docRef.id };
                             } catch (err) {
                                 console.error("🔥 [Firestore Error] Failed to save question:", err);
+                                return { success: false, error: err };
+                            }
+                        };
+
+                        // ลบข้อสอบออกจาก Firestore
+                        window.deleteQuestionFromFirestore = async function(docId) {
+                            try {
+                                if (docId) {
+                                    await deleteDoc(doc(db, "questions", docId));
+                                    console.log("🔥 [Firestore] Question deleted:", docId);
+                                    return { success: true };
+                                }
+                                return { success: false, error: "Missing docId" };
+                            } catch (err) {
+                                console.error("🔥 [Firestore Error] Failed to delete question:", err);
                                 return { success: false, error: err };
                             }
                         };

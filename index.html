@@ -604,6 +604,7 @@
             getDocs,
             collection, 
             addDoc,
+            deleteDoc,
             query,
             orderBy,
             limit
@@ -736,6 +737,33 @@
                 }
             };
 
+            // ลบคำถามออกจาก Cloud Firestore
+            window.deleteQuestionFromFirestore = async function(docId, qText) {
+                try {
+                    if (docId) {
+                        await deleteDoc(doc(db, "questions", docId));
+                        console.log("🔥 [Firestore] Question deleted by ID:", docId);
+                        return { success: true };
+                    }
+                    if (qText) {
+                        const snap = await getDocs(collection(db, "questions"));
+                        let found = false;
+                        for (const d of snap.docs) {
+                            if (d.data().question === qText) {
+                                await deleteDoc(doc(db, "questions", d.id));
+                                console.log("🔥 [Firestore] Question deleted by match:", d.id);
+                                found = true;
+                            }
+                        }
+                        return { success: found };
+                    }
+                    return { success: false, error: "Missing docId or question text" };
+                } catch (err) {
+                    console.error("🔥 [Firestore Error] Failed to delete question:", err);
+                    return { success: false, error: err };
+                }
+            };
+
             // ดึงข้อสอบทั้งหมดที่ Admin เพิ่มจาก Firestore
             window.loadCustomQuestionsFromFirestore = async function() {
                 try {
@@ -806,10 +834,12 @@
                     if (window.loadCustomQuestionsFromFirestore && window.QuizEngine) {
                         const customQs = await window.loadCustomQuestionsFromFirestore();
                         if (customQs && customQs.length > 0) {
+                            window.QuizEngine.questionsByDifficulty = { easy: [], medium: [], hard: [] };
                             customQs.forEach(q => {
                                 const diff = (q.difficulty || 'easy').toLowerCase();
                                 if (window.QuizEngine.questionsByDifficulty && window.QuizEngine.questionsByDifficulty[diff]) {
                                     window.QuizEngine.questionsByDifficulty[diff].push({
+                                        id: q.id,
                                         q: q.question,
                                         c: q.choices,
                                         a: q.correctIndex,
@@ -1071,7 +1101,7 @@
                 this.questionsByDifficulty[diff].push(newQuestion);
 
                 if (window.saveCustomQuestionToFirestore) {
-                    await window.saveCustomQuestionToFirestore({
+                    const res = await window.saveCustomQuestionToFirestore({
                         difficulty: diff,
                         question: qText,
                         choices: [c0, c1, c2, c3],
@@ -1079,9 +1109,38 @@
                         explanation: newQuestion.exp,
                         createdBy: this.ADMIN_ID
                     });
+                    if (res && res.id) {
+                        newQuestion.id = res.id;
+                    }
                 }
 
                 this.adminMessage = "เพิ่มข้อสอบระดับ " + diff.toUpperCase() + " สำเร็จเรียบร้อย!";
+                PhoneOS.renderAppContent();
+            },
+
+            async adminDeleteQuestion(diff, idx) {
+                if (!this.isAdmin()) return;
+                const list = this.questionsByDifficulty[diff];
+                if (!list || idx < 0 || idx >= list.length) return;
+
+                const q = list[idx];
+                const preview = q.q ? (q.q.length > 35 ? q.q.substring(0, 35) + '...' : q.q) : 'ข้อสอบนี้';
+                if (!confirm(`คุณต้องการลบข้อสอบ:\n"${preview}"\nใช่หรือไม่?`)) {
+                    return;
+                }
+
+                const docId = q.id;
+                const qText = q.q;
+
+                // ลบออกจาก Memory
+                list.splice(idx, 1);
+
+                // ลบออกจาก Cloud Firestore
+                if (window.deleteQuestionFromFirestore) {
+                    await window.deleteQuestionFromFirestore(docId, qText);
+                }
+
+                this.adminMessage = "ลบข้อสอบสำเร็จเรียบร้อยแล้ว!";
                 PhoneOS.renderAppContent();
             },
 
@@ -1526,6 +1585,49 @@
                     ? `<div class='portal-alert-box' style='color:#4ade80; border-color:#22c55e66; margin-bottom:10px;'>✅ ${this.adminMessage}</div>`
                     : "";
 
+                let questionsHtml = "";
+                let totalQs = 0;
+                ['easy', 'medium', 'hard'].forEach(diffKey => {
+                    const list = this.questionsByDifficulty[diffKey] || [];
+                    totalQs += list.length;
+                    if (list.length > 0) {
+                        const badge = diffKey === 'easy' ? '🟢 ระดับง่าย (Easy)' : (diffKey === 'medium' ? '🟡 ระดับกลาง (Medium)' : '🔴 ระดับยาก (Hard)');
+                        questionsHtml += `<div style='font-size:12px; font-weight:700; color:#ff75b5; margin:12px 0 6px;'>${badge} (${list.length} ข้อ)</div>`;
+                        list.forEach((q, i) => {
+                            const correctText = (q.c && q.c[q.a] !== undefined) ? q.c[q.a] : '-';
+                            const safeQ = (q.q || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                            const safeAns = (correctText || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                            const expHtml = q.exp ? `<div style='font-size:10px; color:#f472b6; margin-top:3px;'>💡 ${(q.exp || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>` : '';
+                            questionsHtml += `
+                                <div style='background:#18061f; border:1px solid rgba(255,42,133,0.25); border-radius:8px; padding:10px; margin-bottom:8px;'>
+                                    <div style='display:flex; justify-content:space-between; align-items:flex-start; gap:8px;'>
+                                        <div style='flex:1;'>
+                                            <div style='font-size:12px; font-weight:700; color:#fff0f7; line-height:1.4;'>${i + 1}. ${safeQ}</div>
+                                            <div style='font-size:11px; color:#a1a1aa; margin-top:4px;'>
+                                                เฉลย: <span style='color:#4ade80; font-weight:600;'>${safeAns}</span>
+                                            </div>
+                                            ${expHtml}
+                                        </div>
+                                        <button onclick='QuizEngine.adminDeleteQuestion("${diffKey}", ${i})' 
+                                            style='background:#3f0c18; border:1px solid #f43f5e; color:#fecdd3; padding:5px 9px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; white-space:nowrap; transition:all 0.2s;'
+                                            onmouseover='this.style.background="#e11d48"; this.style.color="#fff";'
+                                            onmouseout='this.style.background="#3f0c18"; this.style.color="#fecdd3";'
+                                            title='ลบข้อสอบข้อนี้'>
+                                            🗑️ ลบ
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
+                });
+
+                const listSection = totalQs === 0 ? `
+                    <div style='text-align:center; padding:16px 10px; background:#14051a; border-radius:10px; border:1px dashed rgba(255,42,133,0.3); color:#94a3b8; font-size:12px;'>
+                        📭 ยังไม่มีข้อสอบในระบบ กรุณาเพิ่มข้อสอบด้านบน
+                    </div>
+                ` : questionsHtml;
+
                 return `
                     <div class='custom-portal-card' style='padding: 16px 14px;'>
                         <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;'>
@@ -1533,7 +1635,7 @@
                                 <span style='font-size:24px;'>⚙️</span>
                                 <div>
                                     <h3 style='font-size:15px; color:#f59e0b; margin:0;'>แผงควบคุมผู้ดูแลระบบ (Admin)</h3>
-                                    <div style='font-size:11px; color:#94a3b8;'>เพิ่มข้อสอบ 3 ระดับ (รหัส: ${this.currentUser})</div>
+                                    <div style='font-size:11px; color:#94a3b8;'>จัดการข้อสอบ 3 ระดับ (รหัส: ${this.currentUser})</div>
                                 </div>
                             </div>
                             <button class='btn-quiz-logout' onclick='QuizEngine.openLobby()'>🏠</button>
@@ -1589,9 +1691,19 @@
                             <input type='text' id='adminExpText' class='modern-form-input' placeholder='กรอกคำอธิบายเฉลย...'>
                         </div>
 
-                        <button class='btn-portal-action' style='background:linear-gradient(135deg, #f59e0b, #d97706); margin-bottom:8px;' onclick='QuizEngine.adminAddQuestion()'>
+                        <button class='btn-portal-action' style='background:linear-gradient(135deg, #f59e0b, #d97706); margin-bottom:14px;' onclick='QuizEngine.adminAddQuestion()'>
                             💾 บันทึกข้อสอบเข้าสู่ระบบ (Sync Firestore)
                         </button>
+
+                        <div style='margin-top:14px; border-top:1px solid rgba(255,42,133,0.25); padding-top:12px; margin-bottom:12px;'>
+                            <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;'>
+                                <div style='font-size:13px; font-weight:700; color:#ff75b5; display:flex; align-items:center; gap:6px;'>
+                                    <span>📋 รายการข้อสอบทั้งหมด</span>
+                                    <span style='background:#2a0822; color:#ff2a85; padding:2px 8px; border-radius:10px; font-size:11px; border:1px solid rgba(255,42,133,0.4);'>${totalQs} ข้อ</span>
+                                </div>
+                            </div>
+                            ${listSection}
+                        </div>
 
                         <button class='btn-portal-action' style='background:#1e0d29; border:1px solid #4a154b;' onclick='QuizEngine.openLobby()'>
                             🏠 กลับสู่หน้าเลือกโหมด (Lobby)

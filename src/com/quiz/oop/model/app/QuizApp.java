@@ -497,6 +497,15 @@ public class QuizApp extends App {
         """.formatted(rowsHtml.toString());
     }
 
+    private String escapeHtml(String text) {
+        if (text == null) return "";
+        return text.replace("&", "&amp;")
+                   .replace("<", "&lt;")
+                   .replace(">", "&gt;")
+                   .replace("\"", "&quot;")
+                   .replace("'", "&#39;");
+    }
+
     /**
      * เรนเดอร์หน้าจอ Admin Panel (เพิ่มข้อสอบ 3 ระดับ)
      */
@@ -517,6 +526,58 @@ public class QuizApp extends App {
             alertHtml = "<div class='portal-alert-box' style='color:#4ade80; border-color:#22c55e66; margin-bottom:10px;'>✅ " + adminMessage + "</div>";
         }
 
+        StringBuilder qListHtml = new StringBuilder();
+        int totalQs = 0;
+        for (String diff : List.of("easy", "medium", "hard")) {
+            List<QuizQuestion> qList = questionsByDifficulty.getOrDefault(diff, Collections.emptyList());
+            totalQs += qList.size();
+            if (!qList.isEmpty()) {
+                String badge = switch (diff) {
+                    case "easy" -> "🟢 ระดับง่าย (Easy)";
+                    case "medium" -> "🟡 ระดับกลาง (Medium)";
+                    default -> "🔴 ระดับยาก (Hard)";
+                };
+                qListHtml.append("<div style='font-size:12px; font-weight:700; color:#ff75b5; margin:12px 0 6px;'>")
+                         .append(badge).append(" (").append(qList.size()).append(" ข้อ)</div>");
+                for (int i = 0; i < qList.size(); i++) {
+                    QuizQuestion q = qList.get(i);
+                    String correctText = (q.getCorrectIndex() >= 0 && q.getCorrectIndex() < q.getChoices().length) ? q.getChoices()[q.getCorrectIndex()] : "-";
+                    String docId = (q.getId() != null) ? q.getId() : "";
+                    String expDiv = (q.getExplanation() != null && !q.getExplanation().isBlank())
+                            ? "<div style='font-size:10px; color:#f472b6; margin-top:3px;'>💡 " + escapeHtml(q.getExplanation()) + "</div>"
+                            : "";
+                    qListHtml.append(String.format("""
+                        <div style='background:#18061f; border:1px solid rgba(255,42,133,0.25); border-radius:8px; padding:10px; margin-bottom:8px;'>
+                            <div style='display:flex; justify-content:space-between; align-items:flex-start; gap:8px;'>
+                                <div style='flex:1;'>
+                                    <div style='font-size:12px; font-weight:700; color:#fff0f7; line-height:1.4;'>%d. %s</div>
+                                    <div style='font-size:11px; color:#a1a1aa; margin-top:4px;'>
+                                        เฉลย: <span style='color:#4ade80; font-weight:600;'>%s</span>
+                                    </div>
+                                    %s
+                                </div>
+                                <button onclick='deleteAdminQuestion("%s", %d, "%s")' 
+                                    style='background:#3f0c18; border:1px solid #f43f5e; color:#fecdd3; padding:5px 9px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; white-space:nowrap;'>
+                                    🗑️ ลบ
+                                </button>
+                            </div>
+                        </div>
+                    """, i + 1, escapeHtml(q.getQuestion()), escapeHtml(correctText), expDiv, diff, i, docId));
+                }
+            }
+        }
+
+        String questionsSection;
+        if (totalQs == 0) {
+            questionsSection = """
+                <div style='text-align:center; padding:16px 10px; background:#14051a; border-radius:10px; border:1px dashed rgba(255,42,133,0.3); color:#94a3b8; font-size:12px;'>
+                    📭 ยังไม่มีข้อสอบในระบบ กรุณาเพิ่มข้อสอบด้านบน
+                </div>
+            """;
+        } else {
+            questionsSection = qListHtml.toString();
+        }
+
         return """
             <div class='custom-portal-card' style='padding: 16px 14px;'>
                 <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;'>
@@ -524,7 +585,7 @@ public class QuizApp extends App {
                         <span style='font-size:24px;'>⚙️</span>
                         <div>
                             <h3 style='font-size:15px; color:#f59e0b; margin:0;'>แผงควบคุมผู้ดูแลระบบ (Admin)</h3>
-                            <div style='font-size:11px; color:#94a3b8;'>เพิ่มข้อสอบ 3 ระดับ (รหัส: %s)</div>
+                            <div style='font-size:11px; color:#94a3b8;'>จัดการข้อสอบ 3 ระดับ (รหัส: %s)</div>
                         </div>
                     </div>
                     <button class='btn-quiz-logout' onclick='triggerEvent("quiz_view_lobby", "")'>🏠</button>
@@ -580,9 +641,19 @@ public class QuizApp extends App {
                     <input type='text' id='adminExpInput' class='modern-form-input' placeholder='กรอกคำอธิบายเฉลย...'>
                 </div>
 
-                <button class='btn-portal-action' style='background:linear-gradient(135deg, #f59e0b, #d97706); margin-bottom:8px;' onclick='submitAdminQuestion()'>
+                <button class='btn-portal-action' style='background:linear-gradient(135deg, #f59e0b, #d97706); margin-bottom:14px;' onclick='submitAdminQuestion()'>
                     💾 บันทึกข้อสอบเข้าสู่ระบบ
                 </button>
+
+                <div style='margin-top:14px; border-top:1px solid rgba(255,42,133,0.25); padding-top:12px; margin-bottom:12px;'>
+                    <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;'>
+                        <div style='font-size:13px; font-weight:700; color:#ff75b5; display:flex; align-items:center; gap:6px;'>
+                            <span>📋 รายการข้อสอบทั้งหมด</span>
+                            <span style='background:#2a0822; color:#ff2a85; padding:2px 8px; border-radius:10px; font-size:11px; border:1px solid rgba(255,42,133,0.4);'>%d ข้อ</span>
+                        </div>
+                    </div>
+                    %s
+                </div>
 
                 <button class='btn-portal-action' style='background:#1e0d29; border:1px solid #4a154b;' onclick='triggerEvent("quiz_view_lobby", "")'>
                     🏠 กลับสู่หน้าเลือกโหมด (Lobby)
@@ -614,14 +685,29 @@ public class QuizApp extends App {
                             correctIndex: parseInt(correct),
                             explanation: exp,
                             createdBy: '6812247008'
+                        }).then(res => {
+                            const docId = (res && res.id) ? res.id : '';
+                            const param = diff + '||' + q + '||' + c0 + '||' + c1 + '||' + c2 + '||' + c3 + '||' + correct + '||' + exp + '||' + docId;
+                            triggerEvent('quiz_add_question', param);
+                        }).catch(() => {
+                            const param = diff + '||' + q + '||' + c0 + '||' + c1 + '||' + c2 + '||' + c3 + '||' + correct + '||' + exp;
+                            triggerEvent('quiz_add_question', param);
                         });
+                    } else {
+                        const param = diff + '||' + q + '||' + c0 + '||' + c1 + '||' + c2 + '||' + c3 + '||' + correct + '||' + exp;
+                        triggerEvent('quiz_add_question', param);
                     }
+                }
 
-                    const param = diff + '||' + q + '||' + c0 + '||' + c1 + '||' + c2 + '||' + c3 + '||' + correct + '||' + exp;
-                    triggerEvent('quiz_add_question', param);
+                function deleteAdminQuestion(diff, idx, docId) {
+                    if (!confirm('ยืนยันที่จะลบข้อสอบข้อนี้ออกจากระบบหรือไม่?')) return;
+                    if (docId && window.deleteQuestionFromFirestore) {
+                        window.deleteQuestionFromFirestore(docId);
+                    }
+                    triggerEvent('quiz_delete_question', diff + '|' + idx);
                 }
             </script>
-        """.formatted(currentUser.getStudentId(), alertHtml);
+        """.formatted(currentUser.getStudentId(), alertHtml, totalQs, questionsSection);
     }
 
     @Override
@@ -726,6 +812,7 @@ public class QuizApp extends App {
                 String c3 = parts[5];
                 int correct = Integer.parseInt(parts[6]);
                 String exp = parts.length > 7 ? parts[7] : "";
+                String docId = parts.length > 8 ? parts[8] : "";
 
                 QuizQuestion newQ = new QuizQuestion(
                     q,
@@ -734,11 +821,29 @@ public class QuizApp extends App {
                     exp,
                     diff
                 );
+                if (docId != null && !docId.isBlank()) {
+                    newQ.setId(docId);
+                }
                 addQuestion(diff, newQ);
                 this.adminMessage = "เพิ่มข้อสอบระดับ " + diff.toUpperCase() + " สำเร็จแล้ว!";
             }
         } catch (Exception e) {
             this.adminMessage = "เกิดข้อผิดพลาดในการเพิ่มข้อสอบ: " + e.getMessage();
+        }
+    }
+
+    public void adminDeleteQuestion(String difficulty, int index) {
+        if (currentUser == null || !currentUser.isAdmin()) return;
+        try {
+            String diff = (difficulty != null) ? difficulty.toLowerCase() : "easy";
+            List<QuizQuestion> list = questionsByDifficulty.get(diff);
+            if (list != null && index >= 0 && index < list.size()) {
+                QuizQuestion removed = list.remove(index);
+                String preview = removed.getQuestion().length() > 25 ? removed.getQuestion().substring(0, 25) + "..." : removed.getQuestion();
+                this.adminMessage = "ลบข้อสอบ: \"" + preview + "\" สำเร็จแล้ว!";
+            }
+        } catch (Exception e) {
+            this.adminMessage = "เกิดข้อผิดพลาดในการลบข้อสอบ: " + e.getMessage();
         }
     }
 

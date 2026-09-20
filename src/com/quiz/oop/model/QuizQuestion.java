@@ -25,11 +25,15 @@ public class QuizQuestion {
         this(question, choices, correctIndex, explanation, "easy");
     }
 
+    private String id;
+
     public String getQuestion() { return question; }
     public String[] getChoices() { return choices; }
     public int getCorrectIndex() { return correctIndex; }
     public String getExplanation() { return explanation; }
     public String getDifficulty() { return difficulty; }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
 
     public boolean isCorrect(int choiceIndex) {
         return choiceIndex == correctIndex;
