@@ -1,0 +1,8 @@
+# Ignore server scripts and Java source from Vercel deployment
+server.js
+server.py
+run.bat
+run.ps1
+src/
+out/
+__pycache__/
