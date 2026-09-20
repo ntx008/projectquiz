@@ -845,22 +845,40 @@
             // ดึงตารางจัดอันดับ (Leaderboard) จาก Firestore เรียงตาม totalScore
             window.getLeaderboardFromFirestore = async function() {
                 try {
-                    const q = query(collection(db, "users"), orderBy("totalScore", "desc"), limit(25));
-                    const snap = await getDocs(q);
-                    const list = [];
-                    snap.forEach(d => {
-                        const data = d.data();
-                        list.push({
-                            studentId: data.studentId || d.id,
-                            role: data.role || 'player',
-                            totalScore: data.totalScore || 0,
-                            highScore: data.highScore || 0,
-                            quizzesPlayed: data.quizzesPlayed || 0
+                    let list = [];
+                    try {
+                        // ลอง query พร้อม orderBy ก่อน (ต้องมี Firestore index)
+                        const q = query(collection(db, "users"), orderBy("totalScore", "desc"), limit(50));
+                        const snap = await getDocs(q);
+                        snap.forEach(d => {
+                            const data = d.data();
+                            list.push({
+                                studentId: data.studentId || d.id,
+                                role: data.role || 'player',
+                                totalScore: data.totalScore || 0,
+                                highScore: data.highScore || 0,
+                                quizzesPlayed: data.quizzesPlayed || 0
+                            });
                         });
-                    });
-                    return list;
+                    } catch (indexErr) {
+                        // Fallback: ดึงทั้งหมดแล้ว sort ใน JS (กรณีไม่มี Firestore index)
+                        console.warn("🔥 [Firestore] orderBy index missing, falling back to client-side sort:", indexErr.message);
+                        const snap = await getDocs(collection(db, "users"));
+                        snap.forEach(d => {
+                            const data = d.data();
+                            list.push({
+                                studentId: data.studentId || d.id,
+                                role: data.role || 'player',
+                                totalScore: data.totalScore || 0,
+                                highScore: data.highScore || 0,
+                                quizzesPlayed: data.quizzesPlayed || 0
+                            });
+                        });
+                        list.sort((a, b) => b.totalScore - a.totalScore);
+                    }
+                    return list.length > 0 ? list : null;
                 } catch (err) {
-                    console.warn("Could not load leaderboard from Firestore (check indexes/rules):", err.message);
+                    console.warn("Could not load leaderboard from Firestore:", err.message);
                     return null;
                 }
             };
@@ -868,29 +886,47 @@
             // ซิงก์บัญชี Admin (6812247008) และผู้เล่นตัวอย่างขึ้น Firestore อัตโนมัติ
             setTimeout(async () => {
                 try {
-                    // Seed Admin (คะแนนเริ่มต้น 0 ไม่เมคคะแนน)
-                    await setDoc(doc(db, "users", "6812247008"), {
-                        studentId: "6812247008",
-                        password: "12345678",
-                        role: "admin",
-                        createdAt: new Date().toISOString(),
-                        highScore: 0,
-                        totalScore: 0,
-                        quizzesPlayed: 0
-                    }, { merge: true });
+                    // Seed Admin — ใช้ merge:true เฉพาะ field ที่ยังไม่มี (ไม่ overwrite คะแนนที่มีอยู่)
+                    const adminSnap = await getDoc(doc(db, "users", "6812247008"));
+                    if (!adminSnap.exists()) {
+                        await setDoc(doc(db, "users", "6812247008"), {
+                            studentId: "6812247008",
+                            password: "12345678",
+                            role: "admin",
+                            createdAt: new Date().toISOString(),
+                            highScore: 0,
+                            totalScore: 0,
+                            quizzesPlayed: 0
+                        });
+                    } else {
+                        // อัพเดทแค่ fields ที่จำเป็น ไม่แตะคะแนน
+                        await setDoc(doc(db, "users", "6812247008"), {
+                            studentId: "6812247008",
+                            password: "12345678",
+                            role: "admin"
+                        }, { merge: true });
+                    }
 
-                    // Seed Player Demo (คะแนนเริ่มต้น 0)
-                    await setDoc(doc(db, "users", "6812345678"), {
-                        studentId: "6812345678",
-                        password: "12345678",
-                        role: "player",
-                        createdAt: new Date().toISOString(),
-                        highScore: 0,
-                        totalScore: 0,
-                        quizzesPlayed: 0
-                    }, { merge: true });
+                    const demoSnap = await getDoc(doc(db, "users", "6812345678"));
+                    if (!demoSnap.exists()) {
+                        await setDoc(doc(db, "users", "6812345678"), {
+                            studentId: "6812345678",
+                            password: "12345678",
+                            role: "player",
+                            createdAt: new Date().toISOString(),
+                            highScore: 0,
+                            totalScore: 0,
+                            quizzesPlayed: 0
+                        });
+                    } else {
+                        await setDoc(doc(db, "users", "6812345678"), {
+                            studentId: "6812345678",
+                            password: "12345678",
+                            role: "player"
+                        }, { merge: true });
+                    }
 
-                    console.log("🔥 [Firestore] Auto-seeded Admin (6812247008) & Demo player into 'users'");
+                    console.log("🔥 [Firestore] Auto-seeded accounts (without touching existing scores)");
 
                     // ซิงก์ข้อสอบทั้งหมดจาก Cloud Firestore เข้าสู่ตัวเกม
                     window.syncQuestionsWithFirestore = async function() {
@@ -931,7 +967,33 @@
                         }
                     };
 
+                    // ดึงคะแนนผู้ใช้ปัจจุบันจาก Firestore เพื่อ restore หลังรีเฟรช
+                    window.syncCurrentUserScore = async function() {
+                        if (!window.QuizEngine || !window.QuizEngine.currentUser) return;
+                        const sId = window.QuizEngine.currentUser;
+                        try {
+                            const snap = await getDoc(doc(db, "users", sId));
+                            if (snap.exists()) {
+                                const data = snap.data();
+                                if (!window.QuizEngine.userDb[sId]) {
+                                    window.QuizEngine.userDb[sId] = {};
+                                }
+                                window.QuizEngine.userDb[sId].totalScore = data.totalScore || 0;
+                                window.QuizEngine.userDb[sId].highScore = data.highScore || 0;
+                                window.QuizEngine.userDb[sId].quizzesPlayed = data.quizzesPlayed || 0;
+                                window.QuizEngine.userDb[sId].role = data.role || 'player';
+                                console.log("🔥 [Firestore] Restored score for", sId, "→ totalScore:", data.totalScore);
+                                if (window.PhoneOS && window.PhoneOS.renderAppContent) {
+                                    window.PhoneOS.renderAppContent();
+                                }
+                            }
+                        } catch (err) {
+                            console.warn("Could not sync user score:", err.message);
+                        }
+                    };
+
                     await window.syncQuestionsWithFirestore();
+                    await window.syncCurrentUserScore();
                 } catch (err) {
                     console.warn("Firestore seed notice:", err.message);
                 }
@@ -1077,6 +1139,21 @@
                         localStorage.setItem('cpe_quiz_current_role', this.currentRole);
                         localStorage.setItem('cpe_quiz_cached_pass', password);
                     } catch (e) {}
+
+                    // ดึงคะแนนล่าสุดจาก Firestore เสมอ (ไม่ใช้ local cache ที่อาจเป็น 0)
+                    if (window.getUserFromFirestore) {
+                        window.getUserFromFirestore(sId).then(fsRes => {
+                            if (fsRes && fsRes.exists && fsRes.data) {
+                                if (!this.userDb[sId] || typeof this.userDb[sId] !== 'object') {
+                                    this.userDb[sId] = {};
+                                }
+                                this.userDb[sId].totalScore = fsRes.data.totalScore || 0;
+                                this.userDb[sId].highScore = fsRes.data.highScore || 0;
+                                this.userDb[sId].quizzesPlayed = fsRes.data.quizzesPlayed || 0;
+                                if (window.PhoneOS) window.PhoneOS.renderAppContent();
+                            }
+                        }).catch(() => {});
+                    }
 
                     if (window.logFirebaseEvent) window.logFirebaseEvent('auth_do_login', { student_id: sId, role: this.currentRole });
                 } else {
