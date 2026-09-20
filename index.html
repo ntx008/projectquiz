@@ -1071,6 +1071,7 @@
                         const sId = savedUser.trim();
                         this.currentUser = sId;
                         this.currentRole = (sId === this.ADMIN_ID) ? 'admin' : (savedRole || 'player');
+                        // เมื่อรีเฟรชหน้า ข้ามหน้า welcome ไป lobby โดยตรง
                         this.screenState = "lobby";
 
                         if (!this.userDb[sId]) {
@@ -1131,7 +1132,8 @@
                     this.currentRole = (sId === this.ADMIN_ID) ? 'admin' : ((userData && userData.role) ? userData.role : 'player');
                     this.authMessage = "";
                     this.isAuthSuccess = true;
-                    this.screenState = "lobby";
+                    // Admin → Lobby ตรงเลย | Player → หน้าต้อนรับก่อน
+                    this.screenState = (sId === this.ADMIN_ID) ? "lobby" : "welcome";
 
                     // บันทึก Session ลง LocalStorage เพื่อคงสถานะล็อกอินไว้เมื่อรีเฟรช
                     try {
@@ -1543,13 +1545,145 @@
                     return this.renderAuth();
                 }
                 switch (this.screenState) {
+                    case "welcome": return this.renderWelcome();
                     case "lobby": return this.renderLobby();
                     case "game": return this.renderGame();
                     case "result": return this.renderResult();
                     case "leaderboard": return this.renderLeaderboard();
                     case "admin": return this.renderAdmin();
-                    default: return this.renderLobby();
+                    default: return this.isAdmin() ? this.renderLobby() : this.renderWelcome();
                 }
+            },
+
+            openWelcome() {
+                this.screenState = "welcome";
+                PhoneOS.renderAppContent();
+            },
+
+            renderWelcome() {
+                const u = this.userDb[this.currentUser] || {};
+                const totalPts = u.totalScore || 0;
+                const highPts = u.highScore || 0;
+                const played = u.quizzesPlayed || 0;
+
+                const easyCount = (this.questionsByDifficulty.easy || []).length;
+                const medCount = (this.questionsByDifficulty.medium || []).length;
+                const hardCount = (this.questionsByDifficulty.hard || []).length;
+                const totalQ = easyCount + medCount + hardCount;
+
+                return `
+                    <div class='custom-portal-card' style='padding:0; overflow:hidden; border-radius:16px;'>
+
+                        <!-- Hero Banner -->
+                        <div style='
+                            background: linear-gradient(135deg, #2d0036 0%, #1a0028 40%, #0d001a 100%);
+                            padding: 28px 20px 20px;
+                            text-align: center;
+                            position: relative;
+                            border-bottom: 1px solid rgba(255,42,133,0.3);
+                        '>
+                            <div style='font-size: 52px; margin-bottom: 8px; line-height:1;'>🧠</div>
+                            <h1 style='
+                                font-size: 22px;
+                                font-weight: 900;
+                                color: #fff;
+                                margin: 0 0 4px;
+                                letter-spacing: 1px;
+                                text-shadow: 0 0 20px rgba(255,42,133,0.8);
+                            '>IQ MASTER QUIZ</h1>
+                            <div style='
+                                font-size: 12px;
+                                color: #ff75b5;
+                                font-weight: 600;
+                                letter-spacing: 2px;
+                                text-transform: uppercase;
+                                margin-bottom: 14px;
+                            '>เกมตอบปัญหาเชาว์ปัญญา 3 ระดับ</div>
+
+                            <div style='display:flex; justify-content:center; gap:12px; margin-bottom:4px;'>
+                                <div style='background:rgba(255,42,133,0.15); border:1px solid rgba(255,42,133,0.3); border-radius:8px; padding:8px 12px; text-align:center;'>
+                                    <div style='font-size:16px; font-weight:800; color:#ff75b5;'>${totalPts}</div>
+                                    <div style='font-size:10px; color:#94a3b8;'>คะแนนสะสม</div>
+                                </div>
+                                <div style='background:rgba(251,191,36,0.12); border:1px solid rgba(251,191,36,0.25); border-radius:8px; padding:8px 12px; text-align:center;'>
+                                    <div style='font-size:16px; font-weight:800; color:#fbbf24;'>${highPts}</div>
+                                    <div style='font-size:10px; color:#94a3b8;'>สูงสุด</div>
+                                </div>
+                                <div style='background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.25); border-radius:8px; padding:8px 12px; text-align:center;'>
+                                    <div style='font-size:16px; font-weight:800; color:#a78bfa;'>${played}</div>
+                                    <div style='font-size:10px; color:#94a3b8;'>รอบที่เล่น</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Player Info -->
+                        <div style='padding:14px 18px 0;'>
+                            <div style='display:flex; align-items:center; gap:10px; background:#18062a; border-radius:10px; padding:10px 14px; border:1px solid rgba(255,42,133,0.2);'>
+                                <div style='font-size:26px;'>👨‍💻</div>
+                                <div>
+                                    <div style='font-size:12px; color:#94a3b8;'>ยินดีต้อนรับ</div>
+                                    <div style='font-size:15px; font-weight:800; color:#fff0f7;'>${this.currentUser}</div>
+                                </div>
+                                <span class='badge-tag' style='margin-left:auto;'>🎮 PLAYER</span>
+                            </div>
+                        </div>
+
+                        <!-- Question Stats -->
+                        <div style='padding:12px 18px 0;'>
+                            <div style='font-size:11px; color:#64748b; font-weight:600; margin-bottom:8px; letter-spacing:1px;'>📚 ข้อสอบในระบบ</div>
+                            <div style='display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;'>
+                                <div style='background:#0a1f0d; border:1px solid rgba(74,222,128,0.25); border-radius:8px; padding:8px; text-align:center;'>
+                                    <div style='font-size:14px; font-weight:800; color:#4ade80;'>${easyCount}</div>
+                                    <div style='font-size:9px; color:#64748b;'>🟢 ง่าย</div>
+                                </div>
+                                <div style='background:#1c1200; border:1px solid rgba(250,204,21,0.25); border-radius:8px; padding:8px; text-align:center;'>
+                                    <div style='font-size:14px; font-weight:800; color:#facc15;'>${medCount}</div>
+                                    <div style='font-size:9px; color:#64748b;'>🟡 กลาง</div>
+                                </div>
+                                <div style='background:#1f0505; border:1px solid rgba(248,113,113,0.25); border-radius:8px; padding:8px; text-align:center;'>
+                                    <div style='font-size:14px; font-weight:800; color:#f87171;'>${hardCount}</div>
+                                    <div style='font-size:9px; color:#64748b;'>🔴 ยาก</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PLAY Button -->
+                        <div style='padding:16px 18px 18px;'>
+                            ${totalQ === 0 ? `
+                                <div style='background:#14051a; border:1px dashed rgba(255,42,133,0.3); border-radius:10px; padding:14px; text-align:center; margin-bottom:10px;'>
+                                    <div style='font-size:24px; margin-bottom:6px;'>📭</div>
+                                    <div style='font-size:12px; color:#64748b;'>ยังไม่มีข้อสอบในระบบ<br>รอ Admin เพิ่มข้อสอบก่อนนะ</div>
+                                </div>
+                            ` : `
+                                <button onclick='QuizEngine.openLobby()' style='
+                                    width: 100%;
+                                    padding: 16px;
+                                    background: linear-gradient(135deg, #ff2a85, #c2185b);
+                                    color: #fff;
+                                    border: none;
+                                    border-radius: 14px;
+                                    font-size: 18px;
+                                    font-weight: 900;
+                                    cursor: pointer;
+                                    letter-spacing: 2px;
+                                    box-shadow: 0 0 28px rgba(255,42,133,0.55);
+                                    margin-bottom: 10px;
+                                    transition: all 0.2s;
+                                ' onmouseover='this.style.transform="scale(1.02)"' onmouseout='this.style.transform="scale(1)"'>
+                                    ▶ PLAY NOW
+                                </button>
+                            `}
+                            <div style='display:flex; gap:8px;'>
+                                <button onclick='QuizEngine.openLeaderboard()' style='flex:1; padding:10px; background:rgba(139,92,246,0.15); color:#a78bfa; border:1px solid rgba(139,92,246,0.35); border-radius:10px; font-size:12px; font-weight:700; cursor:pointer;'>
+                                    🏆 Leaderboard
+                                </button>
+                                <button onclick='QuizEngine.logout()' style='flex:1; padding:10px; background:rgba(255,255,255,0.04); color:#64748b; border:1px solid rgba(255,255,255,0.08); border-radius:10px; font-size:12px; cursor:pointer;'>
+                                    🚪 ออกจากระบบ
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
             },
 
             renderAuth() {
