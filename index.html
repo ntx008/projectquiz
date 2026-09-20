@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Android Smartphone OOP Simulator - Brain Teaser Quiz (Pink & Black)</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: #060207;
+            color: #fdf2f8;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+            overflow-x: hidden;
+        }
+        .top-navbar {
+            background: #110514;
+            border-bottom: 1px solid #2d0c2c;
+            padding: 14px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .brand-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .brand-header h1 { font-size: 18px; color: #fff0f7; }
+        .badge-tag {
+            background: linear-gradient(135deg, #ff2a85, #c2185b);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 6px;
+            box-shadow: 0 0 10px rgba(255, 42, 133, 0.4);
+        }
+        .nav-right-pills {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1c0822;
+            border: 1px solid #3d1240;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #ff75b5;
+        }
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: #ff2a85;
+            box-shadow: 0 0 8px #ff2a85;
+        }
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px 16px;
+        }
+        /* Chassis */
+        .phone-chassis {
+            position: relative;
+            padding: 20px 30px;
+        }
+        .android-phone {
+            position: relative;
+            width: 360px;
+            height: 720px;
+            background: #000;
+            border-radius: 42px;
+            box-shadow: 0 0 0 12px #160819, 0 0 0 14px #2c102c, 0 25px 60px rgba(0,0,0,0.85), 0 0 35px rgba(255, 42, 133, 0.15);
+            overflow: hidden;
+        }
+        /* Hardware Buttons */
+        .hw-btn-power {
+            position: absolute; right: 13px; top: 180px;
+            width: 6px; height: 55px;
+            background: #ff2a85; border-radius: 0 4px 4px 0;
+            box-shadow: 0 0 10px #ff2a85;
+            cursor: pointer;
+        }
+        .hw-btn-vol-up {
+            position: absolute; left: 13px; top: 160px;
+            width: 6px; height: 48px;
+            background: #2b112d; border-radius: 4px 0 0 4px;
+            cursor: pointer;
+        }
+        .hw-btn-vol-down {
+            position: absolute; left: 13px; top: 220px;
+            width: 6px; height: 48px;
+            background: #2b112d; border-radius: 4px 0 0 4px;
+            cursor: pointer;
+        }
+        .punch-hole {
+            position: absolute; top: 11px; left: 50%;
+            transform: translateX(-50%);
+            width: 13px; height: 13px;
+            background: #030104; border: 1.5px solid #1c0822;
+            border-radius: 50%; z-index: 999;
+        }
+        .phone-screen {
+            width: 100%; height: 100%;
+            background: linear-gradient(to bottom, #1d0722, #0d0310, #020104);
+            display: flex; flex-direction: column;
+            position: relative; overflow: hidden;
+        }
+        .phone-screen.screen-off {
+            background: #000 !important;
+        }
+        .phone-screen.screen-off > *:not(.punch-hole) {
+            display: none !important;
+        }
+        /* Status Bar */
+        .status-bar {
+            height: 34px;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 6px 18px 0;
+            font-size: 11px; font-weight: 600;
+            z-index: 50;
+            color: #fbcfe8;
+            background: linear-gradient(to bottom, rgba(16,3,19,0.8), transparent);
+        }
+        .battery-badge {
+            display: flex; align-items: center; gap: 4px;
+        }
+        .battery-shell {
+            position: relative; width: 20px; height: 10px;
+            border: 1.5px solid #ff75b5; border-radius: 3px; padding: 1px;
+        }
+        .battery-shell::after {
+            content:''; position: absolute; right: -3px; top: 2px;
+            width: 2px; height: 4px; background: #ff75b5; border-radius: 0 1px 1px 0;
+        }
+        .battery-fill {
+            height: 100%; background: #ff2a85; width: 100%;
+            box-shadow: 0 0 6px #ff2a85;
+            border-radius: 1px;
+        }
+        /* Home Screen */
+        .home-screen {
+            flex: 1; display: flex; flex-direction: column;
+            justify-content: space-between; padding: 14px 16px;
+        }
+        .home-clock-widget {
+            padding: 10px 4px;
+        }
+        .home-time { font-size: 38px; font-weight: 300; color: #fff; text-shadow: 0 0 15px rgba(255, 42, 133, 0.4); }
+        .home-date { font-size: 13px; color: #f472b6; }
+        .home-brand-tag {
+            font-size: 11px; color: #ff2a85; font-weight: 800;
+            text-transform: uppercase; margin-top: 2px; letter-spacing: 1px;
+        }
+        .search-bar-widget {
+            background: rgba(255, 42, 133, 0.12);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 42, 133, 0.25);
+            border-radius: 20px; padding: 9px 14px;
+            display: flex; justify-content: space-between;
+            font-size: 12px; color: #fbcfe8; margin: 10px 0 14px;
+        }
+        .app-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 16px 8px;
+        }
+        .app-icon-item {
+            display: flex; flex-direction: column; align-items: center; gap: 6px;
+            cursor: pointer; transition: transform 0.15s;
+        }
+        .app-icon-item:hover { transform: translateY(-2px); }
+        .app-icon-item:active { transform: scale(0.92); }
+        .app-icon-box {
+            width: 52px; height: 52px; border-radius: 16px;
+            background: rgba(255, 42, 133, 0.14); backdrop-filter: blur(12px);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 26px; border: 1px solid rgba(255, 42, 133, 0.28);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            position: relative;
+        }
+        .app-icon-box.featured-app {
+            background: linear-gradient(135deg, rgba(255, 42, 133, 0.35), rgba(194, 24, 91, 0.45));
+            border: 1.5px solid #ff2a85;
+            box-shadow: 0 0 16px rgba(255, 42, 133, 0.6);
+            animation: pulse-glow 2s infinite alternate;
+        }
+        @keyframes pulse-glow {
+            from { box-shadow: 0 0 10px rgba(255, 42, 133, 0.4); }
+            to { box-shadow: 0 0 20px rgba(255, 42, 133, 0.8); }
+        }
+        .app-name-label {
+            font-size: 11px; color: #fce7f3; text-align: center; font-weight: 500;
+        }
+        .home-dock {
+            margin-top: auto; padding: 10px 14px;
+            background: rgba(18, 5, 22, 0.7); backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 42, 133, 0.22);
+            border-radius: 24px; display: flex; justify-content: space-around;
+        }
+        .android-nav-bar {
+            height: 38px; background: rgba(8, 1, 10, 0.85);
+            border-top: 1px solid rgba(255, 42, 133, 0.15);
+            display: flex; justify-content: space-around; align-items: center;
+            z-index: 500;
+        }
+        .nav-btn {
+            background: none; border: none; color: #f472b6;
+            font-size: 16px; cursor: pointer; padding: 6px 20px;
+        }
+        /* App Window */
+        .app-view-window {
+            position: absolute; inset: 34px 0 38px 0;
+            background: #080209; z-index: 250;
+            display: none; flex-direction: column;
+        }
+        .app-view-window.active { display: flex; }
+        .app-view-header {
+            height: 48px; padding: 0 14px;
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(22, 6, 26, 0.95); border-bottom: 1px solid rgba(255, 42, 133, 0.3);
+            color: #ff75b5;
+        }
+        .app-header-left { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; color: #fdf2f8; }
+        .btn-close-app { background: none; border: none; color: #ff75b5; font-size: 18px; cursor: pointer; }
+        .app-view-body { flex: 1; padding: 14px; overflow-y: auto; }
+
+        /* Custom Modern Glassmorphism Auth Portal Styles - Pink & Black */
+        .custom-portal-card {
+            background: linear-gradient(150deg, #190720, #08020b);
+            border: 1.5px solid rgba(255, 42, 133, 0.35);
+            border-radius: 24px;
+            padding: 20px 16px;
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.9), 0 0 30px rgba(255, 42, 133, 0.15);
+            color: #fff;
+        }
+        .portal-brand-banner {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        .portal-emblem-icon {
+            width: 48px; height: 48px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #ff2a85, #b5179e);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; margin: 0 auto 8px;
+            box-shadow: 0 6px 20px rgba(255, 42, 133, 0.5);
+        }
+        .portal-brand-title {
+            font-size: 18px; font-weight: 800;
+            background: linear-gradient(to right, #ffffff, #ff75b5, #ff2a85);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            letter-spacing: 1.2px;
+        }
+        .portal-brand-subtitle {
+            font-size: 11px; color: #f472b6; margin-top: 3px; font-weight: 500;
+        }
+        .modern-pill-tabs {
+            display: flex;
+            background: rgba(9, 2, 12, 0.85);
+            border: 1.5px solid rgba(255, 42, 133, 0.28);
+            border-radius: 30px; padding: 4px;
+            margin-bottom: 16px; gap: 4px;
+        }
+        .pill-tab-btn {
+            flex: 1; padding: 9px 8px;
+            border-radius: 24px; border: none;
+            background: transparent; color: #f472b6;
+            font-size: 12px; font-weight: 700; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            transition: all 0.25s ease;
+        }
+        .pill-tab-btn.active {
+            background: linear-gradient(135deg, #ff2a85, #c2185b);
+            color: #ffffff;
+            box-shadow: 0 4px 14px rgba(255, 42, 133, 0.6);
+        }
+        .modern-form-group { margin-bottom: 12px; }
+        .modern-form-label {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 12px; font-weight: 600; color: #ffe4e6;
+            margin-bottom: 5px;
+        }
+        .modern-form-input {
+            width: 100%; padding: 11px 13px;
+            background: rgba(13, 3, 17, 0.75);
+            border: 1.5px solid rgba(255, 42, 133, 0.28);
+            border-radius: 12px; color: #ffffff;
+            font-size: 13px; outline: none; transition: all 0.2s ease;
+        }
+        .modern-form-input:focus {
+            border-color: #ff2a85;
+            box-shadow: 0 0 14px rgba(255, 42, 133, 0.45);
+            background: rgba(19, 4, 24, 0.95);
+        }
+        .modern-form-input::placeholder { color: #7b436c; }
+        .btn-portal-action {
+            width: 100%;
+            background: linear-gradient(135deg, #ff2a85, #be185d);
+            color: #ffffff; font-weight: 800; font-size: 14px;
+            border-radius: 14px; padding: 12px; border: none;
+            box-shadow: 0 6px 20px rgba(255, 42, 133, 0.5);
+            cursor: pointer; display: flex; align-items: center;
+            justify-content: center; gap: 8px; margin-top: 8px;
+            transition: all 0.2s ease;
+        }
+        .btn-portal-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 42, 133, 0.7);
+        }
+        .btn-portal-action:active { transform: scale(0.98); }
+        .custom-portal-footer {
+            text-align: center; margin-top: 14px;
+            font-size: 11px; color: #f472b6;
+        }
+        .custom-portal-footer a {
+            color: #ff75b5; text-decoration: none; font-weight: 700;
+            border-bottom: 1px dashed #ff75b5; cursor: pointer;
+        }
+        .portal-demo-pill {
+            margin-top: 14px;
+            background: rgba(28, 8, 33, 0.7);
+            border: 1px solid rgba(255, 42, 133, 0.25);
+            padding: 8px 12px; border-radius: 10px;
+            font-size: 10.5px; color: #fbcfe8; text-align: center;
+        }
+        .portal-alert-box {
+            padding: 8px 12px; border-radius: 10px;
+            font-size: 11.5px; font-weight: 600; text-align: center;
+            margin-bottom: 12px; background: rgba(255, 42, 133, 0.1);
+            border: 1px solid;
+        }
+
+        /* Quiz Game Gameplay Styles - Pink & Black */
+        .quiz-game-container { display: flex; flex-direction: column; gap: 12px; }
+        .quiz-status-header {
+            display: flex; justify-content: space-between; align-items: center;
+            background: #18071e; border: 1px solid rgba(255, 42, 133, 0.3);
+            padding: 8px 12px; border-radius: 12px; font-size: 12px;
+        }
+        .user-tag { font-weight: 700; color: #ff75b5; }
+        .quiz-score-badge { font-weight: 800; color: #ff2a85; }
+        .btn-quiz-logout {
+            background: #2b0b28; border: 1px solid rgba(255, 42, 133, 0.3); color: #ff75b5;
+            padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;
+        }
+        .quiz-progress-bar-wrap {
+            height: 5px; background: #1d0724; border-radius: 3px; overflow: hidden;
+        }
+        .quiz-progress-bar-fill {
+            height: 100%; background: linear-gradient(90deg, #ff2a85, #ff75b5);
+            box-shadow: 0 0 10px #ff2a85; transition: width 0.3s;
+        }
+        .quiz-question-box {
+            background: #14051a; border: 1.5px solid rgba(255, 42, 133, 0.3);
+            border-radius: 14px; padding: 14px;
+        }
+        .q-number-tag {
+            font-size: 10px; font-weight: 800; color: #ff75b5; text-transform: uppercase;
+        }
+        .q-text {
+            font-size: 14px; color: #fff0f7; margin-top: 6px; line-height: 1.5; font-weight: 600;
+        }
+        .quiz-choices-list { display: flex; flex-direction: column; gap: 8px; }
+        .quiz-choice-btn {
+            background: #16061b; border: 1.5px solid rgba(255, 42, 133, 0.25);
+            color: #fdf2f8; padding: 12px 14px; border-radius: 10px;
+            font-size: 13px; text-align: left; cursor: pointer; transition: all 0.15s;
+        }
+        .quiz-choice-btn:hover { background: #260a2d; border-color: #ff2a85; }
+        .quiz-choice-btn.choice-correct {
+            background: #3b0d28 !important; border-color: #ff2a85 !important; color: #ffd6ea !important;
+            box-shadow: 0 0 14px rgba(255, 42, 133, 0.5) !important;
+        }
+        .quiz-choice-btn.choice-wrong {
+            background: #2d080e !important; border-color: #f43f5e !important; color: #fecdd3 !important;
+        }
+        .quiz-explanation-box {
+            background: #190720; border-radius: 10px; padding: 10px 12px; font-size: 12px;
+            border: 1px solid rgba(255, 42, 133, 0.25); color: #fce7f3; line-height: 1.4;
+        }
+        .btn-next-question {
+            background: linear-gradient(135deg, #ff2a85, #be185d); color: #fff; border: none; padding: 12px;
+            border-radius: 10px; font-weight: 700; font-size: 13px; cursor: pointer;
+            box-shadow: 0 4px 16px rgba(255, 42, 133, 0.5);
+        }
+        .quiz-result-container {
+            text-align: center; padding: 24px 12px;
+            display: flex; flex-direction: column; align-items: center; gap: 14px;
+        }
+        .result-student-id { font-size: 13px; color: #f472b6; }
+        .result-score-circle {
+            width: 120px; height: 120px; border-radius: 50%;
+            background: radial-gradient(circle, #ff2a85 20%, #150519 100%);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            box-shadow: 0 0 30px rgba(255, 42, 133, 0.6);
+            border: 2px solid rgba(255, 42, 133, 0.5);
+        }
+        .result-score-number { font-size: 36px; font-weight: 800; color: #fff; text-shadow: 0 0 10px #ff75b5; }
+        .result-score-total { font-size: 11px; color: #fbcfe8; }
+        .result-grade-badge {
+            background: #1c0822; border: 1.5px solid #ff2a85;
+            padding: 8px 16px; border-radius: 20px; font-weight: 700; color: #ff75b5; font-size: 13px;
+            box-shadow: 0 0 12px rgba(255, 42, 133, 0.35);
+        }
+        .result-actions { display: flex; gap: 10px; width: 100%; }
+        .btn-restart-quiz {
+            flex: 1; background: linear-gradient(135deg, #ff2a85, #be185d); border: none; color: #fff;
+            padding: 12px; border-radius: 10px; font-weight: 700; font-size: 13px; cursor: pointer;
+            box-shadow: 0 4px 14px rgba(255, 42, 133, 0.4);
+        }
+        .btn-result-logout {
+            background: #1c0822; border: 1px solid rgba(255, 42, 133, 0.3); color: #fbcfe8;
+            padding: 12px; border-radius: 10px; font-weight: 700; font-size: 13px; cursor: pointer;
+        }
+        /* Notification Shade */
+        .notif-shade {
+            position: absolute; top: 0; left: 0; right: 0; height: 75%;
+            background: rgba(14,3,18,0.96); backdrop-filter: blur(20px);
+            border-bottom: 2px solid #ff2a85;
+            border-radius: 0 0 28px 28px; z-index: 400; padding: 40px 16px 16px;
+            transform: translateY(-100%); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex; flex-direction: column;
+        }
+        .notif-shade.open { transform: translateY(0); }
+        .shade-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .btn-clear-notif { background: none; border: none; color: #ff75b5; font-size: 12px; cursor: pointer; }
+        .notif-card { background: #1b0722; border: 1px solid rgba(255, 42, 133, 0.25); border-radius: 10px; padding: 10px; display: flex; gap: 10px; margin-bottom: 8px; }
+        .notif-desc { font-size: 12px; color: #fdf2f8; }
+        .hints-bar { margin-top: 14px; display: flex; gap: 12px; font-size: 12px; color: #f472b6; }
+        .hints-bar span { background: #14051a; border: 1px solid #2e0d30; padding: 4px 10px; border-radius: 6px; }
+    </style>
+</head>
+<body>
+    <!-- Top Navbar -->
+    <header class="top-navbar">
+        <div class="brand-header">
+            <span style="font-size: 24px;">☕</span>
+            <div>
+                <h1>Android Smartphone OOP Simulator</h1>
+                <span style="font-size: 11px; color: #ff75b5;">100% Pure Java Architecture &bull; Pink & Black Edition</span>
+            </div>
+        </div>
+        <div class="nav-right-pills">
+            <div class="status-pill" id="firebaseStatusPill" style="border-color: rgba(255, 42, 133, 0.4); background: #1a0820;">
+                <span class="status-dot" style="background: #ff2a85; box-shadow: 0 0 8px #ff2a85;"></span>
+                <span id="firebaseStatusText">🔥 Firebase: projectquiz-5b3cd</span>
+            </div>
+            <div class="status-pill">
+                <span class="status-dot"></span>
+                <span>Vercel Online Ready</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <div class="phone-chassis">
+            <!-- Hardware Buttons -->
+            <div class="hw-btn-vol-up" onclick="PhoneOS.adjustVolume(5)" title="เพิ่มเสียง (Volume Up)"></div>
+            <div class="hw-btn-vol-down" onclick="PhoneOS.adjustVolume(-5)" title="ลดเสียง (Volume Down)"></div>
+            <div class="hw-btn-power" onclick="PhoneOS.togglePower()" title="ปุ่มเปิด/ปิดเครื่อง (Power Button)"></div>
+
+            <div class="android-phone">
+                <div class="punch-hole"></div>
+
+                <div class="phone-screen" id="phoneScreen">
+                    <!-- Status Bar (100% Infinite Battery) -->
+                    <div class="status-bar">
+                        <span id="statusClock">12:00</span>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span>📶 5G</span>
+                            <div class="battery-badge">
+                                <span style="color: #ff75b5; font-weight: 700;">100%</span>
+                                <div class="battery-shell">
+                                    <div class="battery-fill"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Home Screen -->
+                    <div class="home-screen" id="homeScreen">
+                        <div class="home-clock-widget">
+                            <div class="home-time" id="homeClock">12:00</div>
+                            <div class="home-date" id="homeDate">วันจันทร์, 20 กันยายน</div>
+                            <div class="home-brand-tag">SAMSUNG GALAXY S24 ULTRA</div>
+                        </div>
+
+                        <div class="search-bar-widget">
+                            <span>🔍 ค้นหาในโทรศัพท์...</span>
+                            <span>🎤 📷</span>
+                        </div>
+
+                        <!-- App Grid -->
+                        <div class="app-grid">
+                            <!-- Featured Quiz App -->
+                            <div class="app-icon-item" onclick="PhoneOS.launchApp('quiz')">
+                                <div class="app-icon-box featured-app">🧠</div>
+                                <span class="app-name-label" style="color: #ff75b5; font-weight: 700;">เกมตอบปัญหา</span>
+                            </div>
+
+                            <div class="app-icon-item" onclick="PhoneOS.launchApp('camera')">
+                                <div class="app-icon-box">📷</div>
+                                <span class="app-name-label">กล้อง</span>
+                            </div>
+
+                            <div class="app-icon-item" onclick="PhoneOS.launchApp('music')">
+                                <div class="app-icon-box">🎵</div>
+                                <span class="app-name-label">เพลง</span>
+                            </div>
+
+                            <div class="app-icon-item" onclick="PhoneOS.launchApp('settings')">
+                                <div class="app-icon-box">⚙️</div>
+                                <span class="app-name-label">ตั้งค่า</span>
+                            </div>
+
+                            <div class="app-icon-item" onclick="PhoneOS.launchApp('notes')">
+                                <div class="app-icon-box">📝</div>
+                                <span class="app-name-label">บันทึก</span>
+                            </div>
+
+                            <div class="app-icon-item" onclick="PhoneOS.launchApp('play')">
+                                <div class="app-icon-box">🛍️</div>
+                                <span class="app-name-label">Play</span>
+                            </div>
+                        </div>
+
+                        <!-- Home Dock -->
+                        <div class="home-dock">
+                            <div class="app-icon-box" style="background:#22c55e;">📞</div>
+                            <div class="app-icon-box" style="background:#0284c7;">💬</div>
+                            <div class="app-icon-box" style="background:#f59e0b;">🌐</div>
+                            <div class="app-icon-box" style="background:#ef4444;" onclick="PhoneOS.launchApp('camera')">📷</div>
+                        </div>
+                    </div>
+
+                    <!-- Active App Window -->
+                    <div class="app-view-window" id="appWindow">
+                        <div class="app-view-header">
+                            <div class="app-header-left" id="activeAppHeader">
+                                <span>🧠</span> <span>เกมตอบปัญหาเชาว์ปัญญา</span>
+                            </div>
+                            <button class="btn-close-app" onclick="PhoneOS.closeApp()">✕</button>
+                        </div>
+                        <div class="app-view-body" id="activeAppBody">
+                            <!-- App content dynamically injected here -->
+                        </div>
+                    </div>
+
+                    <!-- Notification Shade -->
+                    <div class="notif-shade" id="notifShade">
+                        <div class="shade-head">
+                            <span style="font-size: 13px; font-weight: 700; color: #ff75b5;">การแจ้งเตือน (Notifications)</span>
+                            <button class="btn-clear-notif" onclick="PhoneOS.clearNotifs()">ล้างทั้งหมด</button>
+                        </div>
+                        <div style="flex: 1; overflow-y: auto;" id="notifList">
+                            <div class="notif-card">
+                                <div style="font-size: 18px;">🔔</div>
+                                <div class="notif-desc">ยินดีต้อนรับสู่ระบบ Android OOP Simulator (Pink & Black Edition)</div>
+                            </div>
+                            <div class="notif-card">
+                                <div style="font-size: 18px;">🔥</div>
+                                <div class="notif-desc">เชื่อมต่อ Firebase Analytics สำเร็จ</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Bar -->
+                    <div class="android-nav-bar">
+                        <button class="nav-btn" onclick="PhoneOS.navBack()" title="ย้อนกลับ">◀</button>
+                        <button class="nav-btn" onclick="PhoneOS.closeApp()" title="หน้าจอหลัก">⭕</button>
+                        <button class="nav-btn" onclick="PhoneOS.toggleShade()" title="การแจ้งเตือน">▢</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hints-bar">
+            <span>⚡ ปุ่มขวา: เปิด/ปิดเครื่อง</span>
+            <span>🔊 ปุ่มซ้าย: เพิ่ม/ลดเสียง</span>
+            <span>🔔 ปุ่ม ▢: แถบแจ้งเตือน</span>
+            <span>🔋 แบตเตอรี่: 100% ตลอดเวลา</span>
+        </div>
+    </main>
+
+    <!-- Firebase App & Analytics SDK (Modular CDN) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCYUkS3DaKsEzRAkVXrKiz3RzI44P4fM9g",
+            authDomain: "projectquiz-5b3cd.firebaseapp.com",
+            projectId: "projectquiz-5b3cd",
+            storageBucket: "projectquiz-5b3cd.firebasestorage.app",
+            messagingSenderId: "476675572289",
+            appId: "1:476675572289:web:7d0faaeacc260c7593fcc0",
+            measurementId: "G-HKEWN731EZ"
+        };
+
+        try {
+            const app = initializeApp(firebaseConfig);
+            let analytics = null;
+            try {
+                analytics = getAnalytics(app);
+                logEvent(analytics, 'page_view', { page_title: 'Android Phone Simulator' });
+            } catch (e) {
+                console.warn("Analytics warning:", e);
+            }
+
+            window.firebaseApp = app;
+            window.firebaseAnalytics = analytics;
+            window.logFirebaseEvent = function(name, params) {
+                console.log("🔥 [Firebase Event]", name, params || {});
+                if (analytics) {
+                    try { logEvent(analytics, name, params); } catch (err) {}
+                }
+            };
+
+            console.log("🔥 Firebase initialized successfully:", firebaseConfig.projectId);
+            const statusElem = document.getElementById('firebaseStatusText');
+            if (statusElem) {
+                statusElem.innerHTML = "🔥 Firebase: Online (" + firebaseConfig.projectId + ")";
+            }
+        } catch (err) {
+            console.error("Firebase init failed:", err);
+            const statusElem = document.getElementById('firebaseStatusText');
+            if (statusElem) {
+                statusElem.innerText = "⚠️ Firebase: Error";
+            }
+        }
+    </script>
+
+    <!-- Phone Simulator & Quiz App Engine -->
+    <script>
+        // ==========================================
+        // OOP State Machine for Quiz App
+        // ==========================================
+        const QuizEngine = {
+            userDb: {
+                "6812345678": "12345678"
+            },
+            currentUser: null,
+            isRegisterTab: false,
+            authMessage: "",
+            isAuthSuccess: true,
+            currentIndex: 0,
+            score: 0,
+            isAnswered: false,
+            lastChoice: -1,
+            isGameOver: false,
+
+            questions: [
+                {
+                    q: "อะไรเอ่ย ยิ่งตัด ยิ่งยาว?",
+                    c: ["ก. เล็บมือ", "ข. เส้นผม", "ค. ถนน", "ง. บะหมี่กึ่งสำเร็จรูป"],
+                    a: 2,
+                    exp: "💡 เฉลย: ถนน! เพราะถ้าเราตัดถนนเพิ่มขึ้น ความยาวของถนนก็จะยาวขึ้นเรื่อยๆ"
+                },
+                {
+                    q: "รถไฟไฟฟ้าแล่นจากทิศเหนือไปทิศใต้ ลมพัดจากทิศตะวันออกไปทิศตะวันตก ควันรถไฟจะพัดไปทางทิศใด?",
+                    c: ["ก. ทิศตะวันตก", "ข. ทิศใต้", "ค. ทิศตะวันออกเฉียงเหนือ", "ง. ไม่มีควัน"],
+                    a: 3,
+                    exp: "💡 เฉลย: ไม่มีควัน! เพราะเป็น 'รถไฟไฟฟ้า' จึงไม่มีควันพวยพุ่งออกมา"
+                },
+                {
+                    q: "เดือนอะไรมี 30 วัน?",
+                    c: ["ก. เมษายน", "ข. กันยายน", "ค. พฤศจิกายน", "ง. ทุกเดือน (ยกเว้น ก.พ.) มี 30 วัน"],
+                    a: 3,
+                    exp: "💡 เฉลย: ทุกเดือนที่มี 31 วัน ก็ย่อมมีวันที่ 30 อยู่ข้างในด้วยเสมอ!"
+                },
+                {
+                    q: "อะไรเอ่ย ยิ่งเช็ด ยิ่งเปียก?",
+                    c: ["ก. ผ้าเช็ดตัว", "ข. ทิชชู่เปียก", "ค. แอลกอฮอล์", "ง. ฟองน้ำล้างจาน"],
+                    a: 0,
+                    exp: "💡 เฉลย: ผ้าเช็ดตัว! เพราะยิ่งเราใช้เช็ดตัวเราให้แห้ง ผ้าเช็ดตัวก็จะยิ่งเปียกน้ำ"
+                },
+                {
+                    q: "มีกระดาษ 1 แผ่น ฉีกครึ่งไปเรื่อยๆ ทั้งหมด 5 ครั้ง จะได้กระดาษกี่ชิ้น?",
+                    c: ["ก. 10 ชิ้น", "ข. 16 ชิ้น", "ค. 25 ชิ้น", "ง. 32 ชิ้น"],
+                    a: 3,
+                    exp: "💡 เฉลย: 32 ชิ้น! คำนวณจาก 2^5 = 32 ชิ้น ตามหลักยกกำลังสอง"
+                },
+                {
+                    q: "ปลาอะไรเอ่ย ขี้เกียจที่สุดในโลก?",
+                    c: ["ก. ปลาวาฬ", "ข. ปลานิล", "ค. ปลาช่อน", "ง. ปลากระป๋อง"],
+                    a: 0,
+                    exp: "💡 เฉลย: ปลาวาฬ! เพราะชอบ 'วาน' (วาฬ) ให้คนอื่นทำแทนตลอดเวลา"
+                }
+            ],
+
+            setTab(isReg) {
+                this.isRegisterTab = isReg;
+                this.authMessage = "";
+                PhoneOS.renderAppContent();
+            },
+
+            login(studentId, password) {
+                if (!studentId || !password) {
+                    this.authMessage = "กรุณากรอกรหัสนักศึกษาและรหัสผ่าน";
+                    this.isAuthSuccess = false;
+                    PhoneOS.renderAppContent();
+                    return;
+                }
+                if (this.userDb[studentId.trim()] === password) {
+                    this.currentUser = studentId.trim();
+                    this.authMessage = "";
+                    this.isAuthSuccess = true;
+                    this.currentIndex = 0;
+                    this.score = 0;
+                    this.isAnswered = false;
+                    this.isGameOver = false;
+                    if (window.logFirebaseEvent) window.logFirebaseEvent('auth_do_login', { student_id: studentId });
+                } else {
+                    this.authMessage = "รหัสนักศึกษาหรือรหัสผ่านไม่ถูกต้อง";
+                    this.isAuthSuccess = false;
+                }
+                PhoneOS.renderAppContent();
+            },
+
+            register(studentId, password, confirmPassword) {
+                if (!studentId || studentId.trim().length !== 10) {
+                    this.authMessage = "รหัสนักศึกษาต้องมีความยาว 10 หลัก";
+                    this.isAuthSuccess = false;
+                    PhoneOS.renderAppContent();
+                    return;
+                }
+                if (!password || password.length < 4) {
+                    this.authMessage = "รหัสผ่านต้องมีความยาวอย่างน้อย 4 ตัวอักษร";
+                    this.isAuthSuccess = false;
+                    PhoneOS.renderAppContent();
+                    return;
+                }
+                if (password !== confirmPassword) {
+                    this.authMessage = "รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน";
+                    this.isAuthSuccess = false;
+                    PhoneOS.renderAppContent();
+                    return;
+                }
+                if (this.userDb[studentId.trim()]) {
+                    this.authMessage = "รหัสนักศึกษานี้ได้ลงทะเบียนไว้แล้ว";
+                    this.isAuthSuccess = false;
+                    PhoneOS.renderAppContent();
+                    return;
+                }
+                this.userDb[studentId.trim()] = password;
+                this.currentUser = studentId.trim();
+                this.authMessage = "สมัครสมาชิกสำเร็จ!";
+                this.isAuthSuccess = true;
+                this.currentIndex = 0;
+                this.score = 0;
+                this.isAnswered = false;
+                this.isGameOver = false;
+                if (window.logFirebaseEvent) window.logFirebaseEvent('auth_do_register', { student_id: studentId });
+                PhoneOS.renderAppContent();
+            },
+
+            submitAuth(type) {
+                const sId = document.getElementById('studentIdInput')?.value || '';
+                const pwd = document.getElementById('passwordInput')?.value || '';
+                const cpwd = document.getElementById('confirmPasswordInput')?.value || '';
+                if (type === 'login') {
+                    this.login(sId, pwd);
+                } else {
+                    this.register(sId, pwd, cpwd);
+                }
+            },
+
+            answer(idx) {
+                if (this.isAnswered || this.isGameOver) return;
+                this.isAnswered = true;
+                this.lastChoice = idx;
+                const q = this.questions[this.currentIndex];
+                if (idx === q.a) {
+                    this.score++;
+                }
+                if (window.logFirebaseEvent) {
+                    window.logFirebaseEvent('quiz_answer', { q_index: this.currentIndex, choice: idx, is_correct: (idx === q.a) });
+                }
+                PhoneOS.renderAppContent();
+            },
+
+            next() {
+                if (!this.isAnswered) return;
+                this.isAnswered = false;
+                this.lastChoice = -1;
+                if (this.currentIndex + 1 < this.questions.length) {
+                    this.currentIndex++;
+                } else {
+                    this.isGameOver = true;
+                    if (window.logFirebaseEvent) {
+                        window.logFirebaseEvent('quiz_complete', { score: this.score, total: this.questions.length });
+                    }
+                }
+                PhoneOS.renderAppContent();
+            },
+
+            restart() {
+                this.currentIndex = 0;
+                this.score = 0;
+                this.isAnswered = false;
+                this.lastChoice = -1;
+                this.isGameOver = false;
+                PhoneOS.renderAppContent();
+            },
+
+            logout() {
+                this.currentUser = null;
+                this.authMessage = "";
+                this.isRegisterTab = false;
+                this.restart();
+            },
+
+            render() {
+                if (!this.currentUser) {
+                    return this.renderAuth();
+                } else if (this.isGameOver) {
+                    return this.renderResult();
+                } else {
+                    return this.renderGame();
+                }
+            },
+
+            renderAuth() {
+                const isReg = this.isRegisterTab;
+                const actLogin = !isReg ? 'active' : '';
+                const actReg = isReg ? 'active' : '';
+                const btnText = !isReg ? '🚀 เข้าสู่ระบบ (SIGN IN)' : '✨ ลงทะเบียนบัญชี (SIGN UP)';
+                const actionType = !isReg ? 'login' : 'register';
+                const helper = !isReg
+                    ? "ยังไม่มีบัญชีใช่หรือไม่? <a onclick='QuizEngine.setTab(true)'>สมัครสมาชิกใหม่</a>"
+                    : "มีบัญชีอยู่แล้วใช่หรือไม่? <a onclick='QuizEngine.setTab(false)'>เข้าสู่ระบบที่นี่</a>";
+
+                let alertBox = "";
+                if (this.authMessage) {
+                    const color = this.isAuthSuccess ? "#ff75b5" : "#f43f5e";
+                    const icon = this.isAuthSuccess ? "💖 " : "⚠️ ";
+                    alertBox = `<div class='portal-alert-box' style='color:${color}; border-color:${color}66;'>${icon}${this.authMessage}</div>`;
+                }
+
+                const confirmField = isReg ? `
+                    <div class='modern-form-group'>
+                        <label class='modern-form-label'><span>🛡️</span> ยืนยันรหัสผ่าน</label>
+                        <input type='password' id='confirmPasswordInput' class='modern-form-input' placeholder='กรอกรหัสผ่านซ้ำอีกครั้ง...'>
+                    </div>
+                ` : "";
+
+                return `
+                    <div class='custom-portal-card'>
+                        <div class='portal-brand-banner'>
+                            <div class='portal-emblem-icon'>🧠</div>
+                            <div class='portal-brand-title'>IQ MASTER PORTAL</div>
+                            <div class='portal-brand-subtitle'>ระบบทดสอบเชาว์ปัญญาและไหวพริบ</div>
+                        </div>
+
+                        <div class='modern-pill-tabs'>
+                            <button class='pill-tab-btn ${actLogin}' onclick='QuizEngine.setTab(false)'>
+                                <span>🔑</span> เข้าสู่ระบบ
+                            </button>
+                            <button class='pill-tab-btn ${actReg}' onclick='QuizEngine.setTab(true)'>
+                                <span>📝</span> ลงทะเบียนใหม่
+                            </button>
+                        </div>
+
+                        ${alertBox}
+
+                        <div class='modern-form-group'>
+                            <label class='modern-form-label'><span>🆔</span> รหัสนักศึกษา (10 หลัก)</label>
+                            <input type='text' id='studentIdInput' class='modern-form-input' placeholder='ตัวอย่าง: 6812345678' maxlength='10'>
+                        </div>
+
+                        <div class='modern-form-group'>
+                            <label class='modern-form-label'><span>🔒</span> รหัสผ่านเข้าใช้งาน</label>
+                            <input type='password' id='passwordInput' class='modern-form-input' placeholder='กรอกรหัสผ่าน...'>
+                        </div>
+
+                        ${confirmField}
+
+                        <button class='btn-portal-action' onclick='QuizEngine.submitAuth("${actionType}")'>${btnText}</button>
+
+                        <div class='custom-portal-footer'>
+                            ${helper}
+                        </div>
+
+                        <div class='portal-demo-pill' onclick="document.getElementById('studentIdInput').value='6812345678'; document.getElementById('passwordInput').value='12345678';" style="cursor:pointer;" title="คลิกเพื่อกรอกอัตโนมัติ">
+                            <span>💡 บัญชีทดสอบด่วน: <strong>6812345678</strong> | รหัส: <strong>12345678</strong> (คลิก)</span>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderGame() {
+                const q = this.questions[this.currentIndex];
+                const pct = Math.round(((this.currentIndex + 1) / this.questions.length) * 100);
+
+                let choicesHtml = "";
+                q.c.forEach((choice, i) => {
+                    let cls = "quiz-choice-btn";
+                    if (this.isAnswered) {
+                        if (i === q.a) cls += " choice-correct";
+                        else if (i === this.lastChoice) cls += " choice-wrong";
+                    }
+                    const clickAttr = !this.isAnswered ? `onclick='QuizEngine.answer(${i})'` : "";
+                    choicesHtml += `<button class='${cls}' ${clickAttr}>${choice}</button>`;
+                });
+
+                let explanationHtml = "";
+                let nextBtnHtml = "";
+                if (this.isAnswered) {
+                    const isCorrect = (this.lastChoice === q.a);
+                    const fbColor = isCorrect ? "#ff2a85" : "#f43f5e";
+                    const fbTitle = isCorrect ? "🎉 ยอดเยี่ยม! ตอบถูกต้อง" : "❌ ผิดซะแล้ว!";
+                    explanationHtml = `
+                        <div class='quiz-explanation-box' style='border-left: 3px solid ${fbColor};'>
+                            <h4 style='color:${fbColor}; margin-bottom:4px;'>${fbTitle}</h4>
+                            <p>${q.exp}</p>
+                        </div>
+                    `;
+                    nextBtnHtml = `<button class='btn-next-question' onclick='QuizEngine.next()'>ข้อถัดไป ➔</button>`;
+                }
+
+                return `
+                    <div class='quiz-game-container'>
+                        <div class='quiz-status-header'>
+                            <div class='user-tag'>👨‍💻 ${this.currentUser}</div>
+                            <div class='quiz-score-badge'>คะแนน: ${this.score} / ${this.questions.length}</div>
+                            <button class='btn-quiz-logout' onclick='QuizEngine.logout()' title='ออกจากระบบ'>🚪 ออก</button>
+                        </div>
+
+                        <div class='quiz-progress-bar-wrap'>
+                            <div class='quiz-progress-bar-fill' style='width: ${pct}%;'></div>
+                        </div>
+
+                        <div class='quiz-question-box'>
+                            <span class='q-number-tag'>คำถามข้อที่ ${this.currentIndex + 1}/${this.questions.length}</span>
+                            <h3 class='q-text'>${q.q}</h3>
+                        </div>
+
+                        <div class='quiz-choices-list'>
+                            ${choicesHtml}
+                        </div>
+
+                        ${explanationHtml}
+                        ${nextBtnHtml}
+                    </div>
+                `;
+            },
+
+            renderResult() {
+                let grade = "🥇 อัจฉริยะเชาว์ปัญญาระดับ CPE เทพ";
+                if (this.score <= 2) grade = "🥉 ต้องฝึกคิดนอกกรอบอีกนิดนะ!";
+                else if (this.score <= 4) grade = "🥈 มีไหวพริบยอดเยี่ยม!";
+
+                return `
+                    <div class='quiz-result-container'>
+                        <div style='font-size: 50px; margin-bottom: 8px;'>🏆</div>
+                        <h2 style='color:#ff75b5; font-size:18px;'>ผลการทดสอบเชาว์ปัญญา</h2>
+                        <div class='result-student-id'>รหัสนักศึกษา: ${this.currentUser}</div>
+                        
+                        <div class='result-score-circle'>
+                            <div class='result-score-number'>${this.score}</div>
+                            <div class='result-score-total'>เต็ม ${this.questions.length} คะแนน</div>
+                        </div>
+
+                        <div class='result-grade-badge'>${grade}</div>
+
+                        <div class='result-actions'>
+                            <button class='btn-restart-quiz' onclick='QuizEngine.restart()'>🔄 เล่นอีกครั้ง</button>
+                            <button class='btn-result-logout' onclick='QuizEngine.logout()'>🚪 ออกจากระบบ</button>
+                        </div>
+                    </div>
+                `;
+            }
+        };
+
+        // ==========================================
+        // Phone OS Simulator Controller
+        // ==========================================
+        const PhoneOS = {
+            isPowered: true,
+            activeApp: null,
+            volume: 70,
+
+            init() {
+                this.updateClock();
+                setInterval(() => this.updateClock(), 1000);
+                // Open quiz app by default so users immediately see it
+                this.launchApp('quiz');
+            },
+
+            updateClock() {
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                const dateStr = now.toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'short' });
+                const sClock = document.getElementById('statusClock');
+                const hClock = document.getElementById('homeClock');
+                const hDate = document.getElementById('homeDate');
+                if (sClock) sClock.innerText = timeStr;
+                if (hClock) hClock.innerText = timeStr;
+                if (hDate) hDate.innerText = dateStr;
+            },
+
+            togglePower() {
+                this.isPowered = !this.isPowered;
+                const scr = document.getElementById('phoneScreen');
+                if (scr) scr.classList.toggle('screen-off', !this.isPowered);
+                if (window.logFirebaseEvent) window.logFirebaseEvent('phone_power_toggle', { is_powered: this.isPowered });
+            },
+
+            adjustVolume(delta) {
+                this.volume = Math.max(0, Math.min(100, this.volume + delta));
+                this.addNotif(`🔊 ระดับเสียง: ${this.volume}%`);
+            },
+
+            toggleShade() {
+                const shade = document.getElementById('notifShade');
+                if (shade) shade.classList.toggle('open');
+            },
+
+            clearNotifs() {
+                const list = document.getElementById('notifList');
+                if (list) list.innerHTML = "<div style='text-align:center; padding:20px; color:#94a3b8;'>ไม่มีการแจ้งเตือน</div>";
+            },
+
+            addNotif(text) {
+                const list = document.getElementById('notifList');
+                if (!list) return;
+                const card = document.createElement('div');
+                card.className = 'notif-card';
+                card.innerHTML = `<div style="font-size: 16px;">🔔</div><div class="notif-desc">${text}</div>`;
+                list.prepend(card);
+            },
+
+            launchApp(type) {
+                this.activeApp = type;
+                const appWin = document.getElementById('appWindow');
+                const header = document.getElementById('activeAppHeader');
+                if (!appWin) return;
+                appWin.classList.add('active');
+
+                if (type === 'quiz') {
+                    if (header) header.innerHTML = "<span>🧠</span> <span>เกมตอบปัญหาเชาว์ปัญญา</span>";
+                    this.renderAppContent();
+                } else if (type === 'camera') {
+                    if (header) header.innerHTML = "<span>📷</span> <span>กล้อง</span>";
+                    document.getElementById('activeAppBody').innerHTML = `
+                        <div style="height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:16px;">
+                            <div style="font-size:60px;">📸</div>
+                            <h3 style="color:#ff75b5;">AI Camera Mode</h3>
+                            <p style="font-size:12px; color:#cbd5e1;">กล้องความละเอียด 200MP พร้อมระบบประมวลผลภาพ AI</p>
+                            <button class="btn-portal-action" style="width:140px;" onclick="alert('📸 ถ่ายภาพสำเร็จ!')">ชัตเตอร์</button>
+                        </div>
+                    `;
+                } else if (type === 'music') {
+                    if (header) header.innerHTML = "<span>🎵</span> <span>เพลง</span>";
+                    document.getElementById('activeAppBody').innerHTML = `
+                        <div style="height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:16px;">
+                            <div style="font-size:60px;">🎧</div>
+                            <h3 style="color:#ff75b5;">Pink & Black Beats</h3>
+                            <p style="font-size:12px; color:#cbd5e1;">เล่นเพลงสตรีมมิ่งคุณภาพสูงระดับ Hi-Res</p>
+                            <button class="btn-portal-action" style="width:140px;" onclick="alert('▶️ กำลังเล่นเพลง!')">เล่นเพลง</button>
+                        </div>
+                    `;
+                } else {
+                    if (header) header.innerHTML = "<span>📱</span> <span>ระบบ</span>";
+                    document.getElementById('activeAppBody').innerHTML = `
+                        <div style="padding:20px; text-align:center; color:#fbcfe8;">
+                            <h3>${type.toUpperCase()} APP</h3>
+                            <p style="font-size:12px; margin-top:8px;">แอปพลิเคชันทำงานปกติบนระบบ Android OOP</p>
+                        </div>
+                    `;
+                }
+                if (window.logFirebaseEvent) window.logFirebaseEvent('app_launch', { app_name: type });
+            },
+
+            closeApp() {
+                this.activeApp = null;
+                const appWin = document.getElementById('appWindow');
+                if (appWin) appWin.classList.remove('active');
+            },
+
+            navBack() {
+                if (this.activeApp) {
+                    this.closeApp();
+                } else {
+                    const shade = document.getElementById('notifShade');
+                    if (shade && shade.classList.contains('open')) {
+                        shade.classList.remove('open');
+                    }
+                }
+            },
+
+            renderAppContent() {
+                if (this.activeApp === 'quiz') {
+                    const body = document.getElementById('activeAppBody');
+                    if (body) body.innerHTML = QuizEngine.render();
+                }
+            }
+        };
+
+        // Initialize Phone Simulator when page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            PhoneOS.init();
+        });
+    </script>
+</body>
+</html>

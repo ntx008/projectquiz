@@ -10,7 +10,7 @@
  */
 
 import { Smartphone } from './Smartphone.js';
-import { CameraApp, MusicPlayerApp, SettingsApp, PlayStoreApp, NotesApp } from './App.js';
+import { QuizApp, CameraApp, MusicPlayerApp, SettingsApp, PlayStoreApp, NotesApp } from './App.js';
 
 export class AndroidPhone extends Smartphone {
     // Private fields สำหรับระบบ Android
@@ -35,7 +35,7 @@ export class AndroidPhone extends Smartphone {
         this.#pinCode = "";
         this.#currentApp = null;
         this.#recentApps = [];
-        this.#accentColor = "#3DDC84"; // Android Green
+        this.#accentColor = "#ff2a85"; // Pink & Black Edition
 
         // ติดตั้ง System Apps เริ่มต้น
         this.#installDefaultSystemApps();
@@ -57,6 +57,7 @@ export class AndroidPhone extends Smartphone {
      */
     #installDefaultSystemApps() {
         const defaultApps = [
+            new QuizApp(),
             new CameraApp(),
             new MusicPlayerApp(),
             new SettingsApp(),

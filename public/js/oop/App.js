@@ -306,3 +306,17 @@ export class NotesApp extends App {
         </div>`;
     }
 }
+
+/**
+ * แอปพลิเคชันเกมตอบปัญหาเชาว์ปัญญา (QuizApp)
+ */
+export class QuizApp extends App {
+    constructor() {
+        super("เกมตอบปัญหาเชาว์ปัญญา", "com.cpe.quiz", "🧠", 28, true);
+    }
+
+    render(phoneContext) {
+        return window.renderQuizAppHtml ? window.renderQuizAppHtml() : `<div style='padding:20px; text-align:center;'>กำลังโหลดแอปพลิเคชัน...</div>`;
+    }
+}
+
