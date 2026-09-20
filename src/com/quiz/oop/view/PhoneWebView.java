@@ -714,6 +714,7 @@ public class PhoneWebView {
                         doc, 
                         setDoc, 
                         getDoc, 
+                        getDocs,
                         collection, 
                         addDoc,
                         deleteDoc 
@@ -838,6 +839,54 @@ public class PhoneWebView {
                             } catch (err) {
                                 console.error("🔥 [Firestore Error] Failed to delete question:", err);
                                 return { success: false, error: err };
+                            }
+                        };
+
+                        // รีเซ็ตคะแนนผู้เล่นทุกคนบน Cloud Firestore
+                        window.resetLeaderboardInFirestore = async function() {
+                            try {
+                                const snap = await getDocs(collection(db, "users"));
+                                const promises = [];
+                                snap.forEach(d => {
+                                    promises.push(setDoc(doc(db, "users", d.id), {
+                                        totalScore: 0,
+                                        highScore: 0,
+                                        quizzesPlayed: 0,
+                                        lastScore: 0
+                                    }, { merge: true }));
+                                });
+                                await Promise.all(promises);
+
+                                try {
+                                    const histSnap = await getDocs(collection(db, "quiz_history"));
+                                    const histPromises = [];
+                                    histSnap.forEach(d => {
+                                        histPromises.push(deleteDoc(doc(db, "quiz_history", d.id)));
+                                    });
+                                    await Promise.all(histPromises);
+                                } catch (e) {}
+
+                                console.log("🔥 [Firestore] All user scores reset to 0!");
+                                return { success: true };
+                            } catch (err) {
+                                console.error("🔥 [Firestore Error] Failed to reset leaderboard:", err);
+                                return { success: false, error: err };
+                            }
+                        };
+
+                        // ซิงก์ข้อสอบทั้งหมดจาก Cloud Firestore
+                        window.syncQuestionsWithFirestore = async function() {
+                            try {
+                                const snap = await getDocs(collection(db, "questions"));
+                                const list = [];
+                                snap.forEach(d => {
+                                    list.push({ id: d.id, ...d.data() });
+                                });
+                                console.log("🔥 [Firestore] Synced", list.length, "questions from database");
+                                return list;
+                            } catch (err) {
+                                console.warn("Could not sync questions from Firestore:", err.message);
+                                return [];
                             }
                         };
 

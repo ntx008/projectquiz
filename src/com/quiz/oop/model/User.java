@@ -68,4 +68,10 @@ public class User {
     public void updateScore(int score) {
         addScore(score);
     }
+
+    public void resetScores() {
+        this.highestScore = 0;
+        this.totalScore = 0;
+        this.quizzesPlayed = 0;
+    }
 }

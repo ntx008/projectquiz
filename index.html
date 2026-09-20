@@ -764,6 +764,38 @@
                 }
             };
 
+            // รีเซ็ตคะแนนผู้เล่นทุกคนบน Cloud Firestore
+            window.resetLeaderboardInFirestore = async function() {
+                try {
+                    const snap = await getDocs(collection(db, "users"));
+                    const promises = [];
+                    snap.forEach(d => {
+                        promises.push(setDoc(doc(db, "users", d.id), {
+                            totalScore: 0,
+                            highScore: 0,
+                            quizzesPlayed: 0,
+                            lastScore: 0
+                        }, { merge: true }));
+                    });
+                    await Promise.all(promises);
+
+                    try {
+                        const histSnap = await getDocs(collection(db, "quiz_history"));
+                        const histPromises = [];
+                        histSnap.forEach(d => {
+                            histPromises.push(deleteDoc(doc(db, "quiz_history", d.id)));
+                        });
+                        await Promise.all(histPromises);
+                    } catch (e) {}
+
+                    console.log("🔥 [Firestore] All user scores reset to 0!");
+                    return { success: true };
+                } catch (err) {
+                    console.error("🔥 [Firestore Error] Failed to reset leaderboard:", err);
+                    return { success: false, error: err };
+                }
+            };
+
             // ดึงข้อสอบทั้งหมดที่ Admin เพิ่มจาก Firestore
             window.loadCustomQuestionsFromFirestore = async function() {
                 try {
@@ -830,32 +862,50 @@
 
                     console.log("🔥 [Firestore] Auto-seeded Admin (6812247008) & Demo player into 'users'");
 
-                    // โหลดข้อสอบที่ Admin เพิ่มไว้ก่อนหน้าเข้ามาในตัวเกม (ถ้ามี)
-                    if (window.loadCustomQuestionsFromFirestore && window.QuizEngine) {
-                        const customQs = await window.loadCustomQuestionsFromFirestore();
-                        if (customQs && customQs.length > 0) {
-                            window.QuizEngine.questionsByDifficulty = { easy: [], medium: [], hard: [] };
-                            customQs.forEach(q => {
-                                const diff = (q.difficulty || 'easy').toLowerCase();
-                                if (window.QuizEngine.questionsByDifficulty && window.QuizEngine.questionsByDifficulty[diff]) {
-                                    window.QuizEngine.questionsByDifficulty[diff].push({
-                                        id: q.id,
-                                        q: q.question,
-                                        c: q.choices,
-                                        a: q.correctIndex,
-                                        exp: q.explanation || "💡 เฉลยจาก Admin"
-                                    });
-                                }
+                    // ซิงก์ข้อสอบทั้งหมดจาก Cloud Firestore เข้าสู่ตัวเกม
+                    window.syncQuestionsWithFirestore = async function() {
+                        try {
+                            const snap = await getDocs(collection(db, "questions"));
+                            const customQs = [];
+                            snap.forEach(d => {
+                                customQs.push({ id: d.id, ...d.data() });
                             });
-                            if (window.PhoneOS && window.PhoneOS.renderAppContent) {
-                                window.PhoneOS.renderAppContent();
+                            console.log("🔥 [Firestore] Synced", customQs.length, "questions from database");
+
+                            if (window.QuizEngine) {
+                                const qMap = { easy: [], medium: [], hard: [] };
+                                customQs.forEach(q => {
+                                    const diff = (q.difficulty || 'easy').toLowerCase();
+                                    if (qMap[diff]) {
+                                        qMap[diff].push({
+                                            id: q.id,
+                                            q: q.question,
+                                            c: q.choices || [],
+                                            a: (typeof q.correctIndex === 'number') ? q.correctIndex : 0,
+                                            exp: q.explanation || "💡 เฉลยจาก Admin"
+                                        });
+                                    }
+                                });
+                                window.QuizEngine.questionsByDifficulty = qMap;
+                                try {
+                                    localStorage.setItem("quiz_questions_cache", JSON.stringify(qMap));
+                                } catch (e) {}
+                                if (window.PhoneOS && window.PhoneOS.renderAppContent) {
+                                    window.PhoneOS.renderAppContent();
+                                }
                             }
+                            return customQs;
+                        } catch (err) {
+                            console.warn("Could not sync questions from Firestore:", err.message);
+                            return [];
                         }
-                    }
+                    };
+
+                    await window.syncQuestionsWithFirestore();
                 } catch (err) {
                     console.warn("Firestore seed notice:", err.message);
                 }
-            }, 800);
+            }, 500);
 
             console.log("🔥 Firebase & Firestore initialized successfully:", firebaseConfig.projectId);
             const statusElem = document.getElementById('firebaseStatusText');
@@ -906,6 +956,22 @@
             isAnswered: false,
             lastChoice: -1,
             cachedLeaderboard: null,
+
+            initCache() {
+                try {
+                    const cached = localStorage.getItem('quiz_questions_cache');
+                    if (cached) {
+                        const parsed = JSON.parse(cached);
+                        if (parsed && (parsed.easy || parsed.medium || parsed.hard)) {
+                            this.questionsByDifficulty = {
+                                easy: parsed.easy || [],
+                                medium: parsed.medium || [],
+                                hard: parsed.hard || []
+                            };
+                        }
+                    }
+                } catch (e) {}
+            },
 
             isAdmin() {
                 return this.currentUser === this.ADMIN_ID || this.currentRole === 'admin';
@@ -1033,6 +1099,10 @@
             },
 
             selectDifficulty(diff) {
+                if (this.isAdmin()) {
+                    alert("⛔ บัญชีแอดมิน (รหัส 6812247008) มีสิทธิ์เฉพาะการจัดการระบบเท่านั้น ไม่สามารถร่วมตอบคำถามได้");
+                    return;
+                }
                 this.currentDifficulty = diff || 'easy';
                 this.activeQuestions = [...(this.questionsByDifficulty[this.currentDifficulty] || [])];
                 this.currentIndex = 0;
@@ -1046,10 +1116,42 @@
                 PhoneOS.renderAppContent();
             },
 
-            openLobby() {
+            async adminResetLeaderboard() {
+                if (!this.isAdmin()) return;
+                if (!confirm("⚠️ คำเตือน: คุณต้องการรีเซ็ตคะแนนผู้เล่นทุกคนบนตารางแรงค์ใช่หรือไม่?\nคะแนนสะสมของผู้เล่นทุกคนจะถูกรีเซ็ตกลับเป็น 0 แต้ม")) {
+                    return;
+                }
+
+                // รีเซ็ตใน Local Memory
+                for (const id in this.userDb) {
+                    if (this.userDb[id] && typeof this.userDb[id] === 'object') {
+                        this.userDb[id].totalScore = 0;
+                        this.userDb[id].highScore = 0;
+                        this.userDb[id].quizzesPlayed = 0;
+                    }
+                }
+                this.cachedLeaderboard = null;
+
+                // รีเซ็ตใน Cloud Firestore
+                if (window.resetLeaderboardInFirestore) {
+                    await window.resetLeaderboardInFirestore();
+                }
+
+                this.adminMessage = "รีเซ็ตคะแนนตารางจัดอันดับทั้งหมดเป็น 0 สำเร็จเรียบร้อยแล้ว!";
+                if (this.screenState === 'leaderboard') {
+                    await this.openLeaderboard();
+                } else {
+                    PhoneOS.renderAppContent();
+                }
+            },
+
+            async openLobby() {
                 this.screenState = "lobby";
                 this.adminMessage = "";
                 PhoneOS.renderAppContent();
+                if (window.syncQuestionsWithFirestore) {
+                    await window.syncQuestionsWithFirestore();
+                }
             },
 
             async openLeaderboard() {
@@ -1064,11 +1166,14 @@
                 }
             },
 
-            openAdminPanel() {
+            async openAdminPanel() {
                 if (this.isAdmin()) {
                     this.screenState = "admin";
                     this.adminMessage = "";
                     PhoneOS.renderAppContent();
+                    if (window.syncQuestionsWithFirestore) {
+                        await window.syncQuestionsWithFirestore();
+                    }
                 }
             },
 
@@ -1100,6 +1205,25 @@
                 }
                 this.questionsByDifficulty[diff].push(newQuestion);
 
+                // เคลียร์ค่าในฟอร์มเพื่อให้ผู้ใช้ทราบว่าถูกส่งแล้ว
+                const qIn = document.getElementById('adminQuestionText');
+                const c0In = document.getElementById('adminChoice0');
+                const c1In = document.getElementById('adminChoice1');
+                const c2In = document.getElementById('adminChoice2');
+                const c3In = document.getElementById('adminChoice3');
+                const expIn = document.getElementById('adminExpText');
+                if (qIn) qIn.value = '';
+                if (c0In) c0In.value = '';
+                if (c1In) c1In.value = '';
+                if (c2In) c2In.value = '';
+                if (c3In) c3In.value = '';
+                if (expIn) expIn.value = '';
+
+                // เซฟลง Local Cache ทันที เพื่อป้องกันข้อมูลหายเมื่อโหลดหน้าใหม่
+                try {
+                    localStorage.setItem('quiz_questions_cache', JSON.stringify(this.questionsByDifficulty));
+                } catch (e) {}
+
                 if (window.saveCustomQuestionToFirestore) {
                     const res = await window.saveCustomQuestionToFirestore({
                         difficulty: diff,
@@ -1111,6 +1235,9 @@
                     });
                     if (res && res.id) {
                         newQuestion.id = res.id;
+                        try {
+                            localStorage.setItem('quiz_questions_cache', JSON.stringify(this.questionsByDifficulty));
+                        } catch (e) {}
                     }
                 }
 
@@ -1145,6 +1272,7 @@
             },
 
             answer(idx) {
+                if (this.isAdmin()) return;
                 if (this.isAnswered || !this.activeQuestions.length) return;
                 this.isAnswered = true;
                 this.lastChoice = idx;
@@ -1313,10 +1441,17 @@
                     : "<span class='badge-tag'>🎮 PLAYER</span>";
 
                 const adminBtn = this.isAdmin() ? `
-                    <button class='btn-portal-action' style='background:linear-gradient(135deg, #f59e0b, #d97706); margin-bottom:10px;' onclick='QuizEngine.openAdminPanel()'>
-                        ⚙️ แผงควบคุม Admin (เพิ่ม/จัดการข้อสอบ)
+                    <button class='btn-portal-action' style='background:linear-gradient(135deg, #f59e0b, #d97706); margin-bottom:8px;' onclick='QuizEngine.openAdminPanel()'>
+                        ⚙️ แผงควบคุม Admin (เพิ่ม/ลบข้อสอบ)
+                    </button>
+                    <button class='btn-portal-action' style='background:linear-gradient(135deg, #ef4444, #b91c1c); margin-bottom:10px;' onclick='QuizEngine.adminResetLeaderboard()'>
+                        🔄 รีเซ็ตคะแนนตารางแรงค์ (Reset Leaderboard)
                     </button>
                 ` : "";
+
+                const easyBadge = this.isAdmin() ? `<span class='badge-tag' style='background:#475569;'>🔒 งดตอบ (${easyCount} ข้อ)</span>` : `<span class='badge-tag' style='background:#15803d;'>${easyCount} ข้อ</span>`;
+                const medBadge = this.isAdmin() ? `<span class='badge-tag' style='background:#475569;'>🔒 งดตอบ (${medCount} ข้อ)</span>` : `<span class='badge-tag' style='background:#a16207;'>${medCount} ข้อ</span>`;
+                const hardBadge = this.isAdmin() ? `<span class='badge-tag' style='background:#475569;'>🔒 งดตอบ (${hardCount} ข้อ)</span>` : `<span class='badge-tag' style='background:#b91c1c;'>${hardCount} ข้อ</span>`;
 
                 return `
                     <div class='custom-portal-card' style='padding: 16px 14px;'>
@@ -1328,17 +1463,29 @@
                             <button class='btn-quiz-logout' onclick='QuizEngine.logout()' title='ออกจากระบบ'>🚪 ออก</button>
                         </div>
 
-                        <!-- User stats banner -->
-                        <div style='background:rgba(255,42,133,0.1); border:1px solid rgba(255,42,133,0.3); border-radius:12px; padding:10px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;'>
-                            <div>
-                                <div style='font-size:11px; color:#ff75b5; text-transform:uppercase;'>คะแนนสะสมรวม</div>
-                                <div style='font-size:20px; font-weight:800; color:#fff;'>⭐ ${totalPts} <span style='font-size:12px; color:#f472b6;'>คะแนน</span></div>
+                        <!-- User stats banner / Admin banner -->
+                        ${this.isAdmin() ? `
+                            <div style='background:rgba(245, 158, 11, 0.12); border:1px solid rgba(245, 158, 11, 0.4); border-radius:12px; padding:10px 14px; margin-bottom:14px;'>
+                                <div style='font-size:12px; font-weight:700; color:#fbbf24; display:flex; align-items:center; gap:6px; margin-bottom:4px;'>
+                                    <span>👑 แผงการจัดการผู้ดูแลระบบ (Admin)</span>
+                                </div>
+                                <div style='font-size:11px; color:#cbd5e1; line-height:1.4;'>
+                                    สิทธิ์: เพิ่ม/ลบข้อสอบ และรีเซ็ตคะแนนตารางแรงค์<br>
+                                    <span style='color:#f87171; font-weight:700;'>🚫 บัญชีแอดมินไม่มีสิทธิ์ร่วมตอบคำถาม</span>
+                                </div>
                             </div>
-                            <div style='text-align:right;'>
-                                <div style='font-size:11px; color:#94a3b8;'>คะแนนสูงสุด</div>
-                                <div style='font-size:15px; font-weight:700; color:#38bdf8;'>🏆 ${highPts} แต้ม</div>
+                        ` : `
+                            <div style='background:rgba(255,42,133,0.1); border:1px solid rgba(255,42,133,0.3); border-radius:12px; padding:10px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;'>
+                                <div>
+                                    <div style='font-size:11px; color:#ff75b5; text-transform:uppercase;'>คะแนนสะสมรวม</div>
+                                    <div style='font-size:20px; font-weight:800; color:#fff;'>⭐ ${totalPts} <span style='font-size:12px; color:#f472b6;'>คะแนน</span></div>
+                                </div>
+                                <div style='text-align:right;'>
+                                    <div style='font-size:11px; color:#94a3b8;'>คะแนนสูงสุด</div>
+                                    <div style='font-size:15px; font-weight:700; color:#38bdf8;'>🏆 ${highPts} แต้ม</div>
+                                </div>
                             </div>
-                        </div>
+                        `}
 
                         <div style='font-size:13px; font-weight:700; color:#ff75b5; margin-bottom:10px; display:flex; align-items:center; gap:6px;'>
                             <span>🎯</span> เลือกระดับความยาก (ตอบถูกได้ +1 คะแนน/ข้อ)
@@ -1355,7 +1502,7 @@
                                         <div style='font-size:11px; color:#94a3b8;'>โจทย์เชาว์ปัญหากวนๆ เล่นเพลิน</div>
                                     </div>
                                 </div>
-                                <span class='badge-tag' style='background:#15803d;'>${easyCount} ข้อ</span>
+                                ${easyBadge}
                             </div>
 
                             <!-- กลาง -->
@@ -1367,7 +1514,7 @@
                                         <div style='font-size:11px; color:#94a3b8;'>โจทย์ตรรกะและไหวพริบสายวิเคราะห์</div>
                                     </div>
                                 </div>
-                                <span class='badge-tag' style='background:#a16207;'>${medCount} ข้อ</span>
+                                ${medBadge}
                             </div>
 
                             <!-- ยาก -->
@@ -1379,7 +1526,7 @@
                                         <div style='font-size:11px; color:#94a3b8;'>โจทย์เชาว์ขั้นสูง ปริศนาสับขาหลอก</div>
                                     </div>
                                 </div>
-                                <span class='badge-tag' style='background:#b91c1c;'>${hardCount} ข้อ</span>
+                                ${hardBadge}
                             </div>
                         </div>
 
@@ -1547,6 +1694,8 @@
                             <button class='btn-quiz-logout' onclick='QuizEngine.openLobby()'>🏠</button>
                         </div>
 
+                        ${this.adminMessage ? `<div class='portal-alert-box' style='color:#4ade80; border-color:#22c55e66; margin-bottom:10px;'>✅ ${this.adminMessage}</div>` : ""}
+
                         <div style='overflow-x:auto; margin-bottom:14px; border-radius:8px; border:1px solid rgba(255,42,133,0.2);'>
                             <table style='width:100%; border-collapse:collapse; font-size:12px; text-align:left;'>
                                 <thead>
@@ -1562,6 +1711,12 @@
                                 </tbody>
                             </table>
                         </div>
+
+                        ${this.isAdmin() ? `
+                            <button class='btn-portal-action' style='background:linear-gradient(135deg, #ef4444, #b91c1c); margin-bottom:10px;' onclick='QuizEngine.adminResetLeaderboard()'>
+                                🔄 รีเซ็ตคะแนนตารางแรงค์ทั้งหมด (Reset Leaderboard)
+                            </button>
+                        ` : ""}
 
                         <button class='btn-portal-action' onclick='QuizEngine.openLobby()'>
                             🏠 กลับสู่หน้าเลือกโหมด (Lobby)
@@ -1691,8 +1846,12 @@
                             <input type='text' id='adminExpText' class='modern-form-input' placeholder='กรอกคำอธิบายเฉลย...'>
                         </div>
 
-                        <button class='btn-portal-action' style='background:linear-gradient(135deg, #f59e0b, #d97706); margin-bottom:14px;' onclick='QuizEngine.adminAddQuestion()'>
+                        <button class='btn-portal-action' style='background:linear-gradient(135deg, #f59e0b, #d97706); margin-bottom:8px;' onclick='QuizEngine.adminAddQuestion()'>
                             💾 บันทึกข้อสอบเข้าสู่ระบบ (Sync Firestore)
+                        </button>
+
+                        <button class='btn-portal-action' style='background:linear-gradient(135deg, #ef4444, #b91c1c); margin-bottom:14px;' onclick='QuizEngine.adminResetLeaderboard()'>
+                            🔄 รีเซ็ตคะแนนตารางแรงค์ทั้งหมด (Reset Leaderboard)
                         </button>
 
                         <div style='margin-top:14px; border-top:1px solid rgba(255,42,133,0.25); padding-top:12px; margin-bottom:12px;'>
@@ -1712,6 +1871,8 @@
                 `;
             }
         };
+        window.QuizEngine = QuizEngine;
+        QuizEngine.initCache();
 
         // ==========================================
         // Phone OS Simulator Controller
@@ -1837,10 +1998,14 @@
                 }
             }
         };
+        window.PhoneOS = PhoneOS;
 
         // Initialize Phone Simulator when page loads
         window.addEventListener('DOMContentLoaded', () => {
             PhoneOS.init();
+            if (window.syncQuestionsWithFirestore) {
+                window.syncQuestionsWithFirestore();
+            }
         });
     </script>
 </body>

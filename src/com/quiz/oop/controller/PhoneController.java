@@ -192,6 +192,14 @@ public class PhoneController {
                     }
                 }
             }
+            case "quiz_reset_leaderboard" -> {
+                App app = phone.getCurrentApp();
+                if (app instanceof com.quiz.oop.model.app.QuizApp quiz) {
+                    quiz.adminResetLeaderboard();
+                    phone.addNotification("Admin รีเซ็ตคะแนนตารางจัดอันดับทั้งหมดเป็น 0 สำเร็จ");
+                    return true;
+                }
+            }
             default -> {
                 return false;
             }

@@ -200,16 +200,30 @@ public class QuizApp extends App {
             </button>
         """ : "";
 
-        return """
-            <div class='custom-portal-card' style='padding: 16px 14px;'>
-                <div class='quiz-status-header' style='margin-bottom:12px;'>
-                    <div style='display:flex; align-items:center; gap:8px;'>
-                        <span style='font-size:13px; font-weight:700; color:#fff0f7;'>👨‍💻 %s</span>
-                        %s
-                    </div>
-                    <button class='btn-quiz-logout' onclick='triggerEvent("quiz_logout", "")' title='ออกจากระบบ'>🚪 ออก</button>
-                </div>
+        String scoreBannerHtml;
+        String easyClick, medClick, hardClick;
+        String easyBadge, medBadge, hardBadge;
 
+        if (currentUser.isAdmin()) {
+            scoreBannerHtml = """
+                <div style='background:rgba(245, 158, 11, 0.12); border:1px solid rgba(245, 158, 11, 0.4); border-radius:12px; padding:10px 14px; margin-bottom:14px;'>
+                    <div style='font-size:12px; font-weight:700; color:#fbbf24; display:flex; align-items:center; gap:6px; margin-bottom:4px;'>
+                        <span>👑 แผงการจัดการผู้ดูแลระบบ (Admin)</span>
+                    </div>
+                    <div style='font-size:11px; color:#cbd5e1; line-height:1.4;'>
+                        สิทธิ์: เพิ่ม/ลบข้อสอบ และรีเซ็ตคะแนนตารางแรงค์<br>
+                        <span style='color:#f87171; font-weight:700;'>🚫 บัญชีแอดมินไม่มีสิทธิ์ร่วมตอบคำถาม</span>
+                    </div>
+                </div>
+            """;
+            easyClick = "onclick='alert(\"⛔ บัญชีแอดมินไม่มีสิทธิ์ร่วมตอบคำถาม\")'";
+            medClick = "onclick='alert(\"⛔ บัญชีแอดมินไม่มีสิทธิ์ร่วมตอบคำถาม\")'";
+            hardClick = "onclick='alert(\"⛔ บัญชีแอดมินไม่มีสิทธิ์ร่วมตอบคำถาม\")'";
+            easyBadge = "<span class='badge-tag' style='background:#475569;'>🔒 งดตอบ (" + easyCount + " ข้อ)</span>";
+            medBadge = "<span class='badge-tag' style='background:#475569;'>🔒 งดตอบ (" + medCount + " ข้อ)</span>";
+            hardBadge = "<span class='badge-tag' style='background:#475569;'>🔒 งดตอบ (" + hardCount + " ข้อ)</span>";
+        } else {
+            scoreBannerHtml = String.format("""
                 <div style='background:rgba(255,42,133,0.1); border:1px solid rgba(255,42,133,0.3); border-radius:12px; padding:10px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;'>
                     <div>
                         <div style='font-size:11px; color:#ff75b5; text-transform:uppercase; letter-spacing:0.5px;'>สถิติคะแนนสะสม</div>
@@ -220,6 +234,26 @@ public class QuizApp extends App {
                         <div style='font-size:14px; font-weight:700; color:#38bdf8;'>🏆 %d แต้ม</div>
                     </div>
                 </div>
+            """, currentUser.getTotalScore(), currentUser.getHighestScore());
+            easyClick = "onclick='triggerEvent(\"quiz_select_difficulty\", \"easy\")'";
+            medClick = "onclick='triggerEvent(\"quiz_select_difficulty\", \"medium\")'";
+            hardClick = "onclick='triggerEvent(\"quiz_select_difficulty\", \"hard\")'";
+            easyBadge = "<span class='badge-tag' style='background:#15803d;'>" + easyCount + " ข้อ</span>";
+            medBadge = "<span class='badge-tag' style='background:#a16207;'>" + medCount + " ข้อ</span>";
+            hardBadge = "<span class='badge-tag' style='background:#b91c1c;'>" + hardCount + " ข้อ</span>";
+        }
+
+        return """
+            <div class='custom-portal-card' style='padding: 16px 14px;'>
+                <div class='quiz-status-header' style='margin-bottom:12px;'>
+                    <div style='display:flex; align-items:center; gap:8px;'>
+                        <span style='font-size:13px; font-weight:700; color:#fff0f7;'>👨‍💻 %s</span>
+                        %s
+                    </div>
+                    <button class='btn-quiz-logout' onclick='triggerEvent("quiz_logout", "")' title='ออกจากระบบ'>🚪 ออก</button>
+                </div>
+
+                %s
 
                 <div style='font-size:14px; font-weight:700; color:#ff75b5; margin-bottom:10px; display:flex; align-items:center; gap:6px;'>
                     <span>🎯</span> เลือกระดับความยาก (ตอบถูกได้ +1 คะแนน/ข้อ)
@@ -227,7 +261,7 @@ public class QuizApp extends App {
 
                 <div style='display:flex; flex-direction:column; gap:10px; margin-bottom:14px;'>
                     <!-- ระดับง่าย -->
-                    <div onclick='triggerEvent("quiz_select_difficulty", "easy")' style='cursor:pointer; background:linear-gradient(135deg, #181024, #12091c); border:1px solid rgba(34, 197, 94, 0.4); border-radius:12px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; transition:all 0.2s;'>
+                    <div %s style='cursor:pointer; background:linear-gradient(135deg, #181024, #12091c); border:1px solid rgba(34, 197, 94, 0.4); border-radius:12px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; transition:all 0.2s;'>
                         <div style='display:flex; align-items:center; gap:10px;'>
                             <div style='font-size:24px; background:#14532d; width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center;'>🟢</div>
                             <div>
@@ -235,11 +269,11 @@ public class QuizApp extends App {
                                 <div style='font-size:11px; color:#94a3b8;'>โจทย์เชาว์ปัญหากวนๆ เล่นเพลิน</div>
                             </div>
                         </div>
-                        <span class='badge-tag' style='background:#15803d;'>%d ข้อ</span>
+                        %s
                     </div>
 
                     <!-- ระดับกลาง -->
-                    <div onclick='triggerEvent("quiz_select_difficulty", "medium")' style='cursor:pointer; background:linear-gradient(135deg, #181024, #12091c); border:1px solid rgba(234, 179, 8, 0.4); border-radius:12px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; transition:all 0.2s;'>
+                    <div %s style='cursor:pointer; background:linear-gradient(135deg, #181024, #12091c); border:1px solid rgba(234, 179, 8, 0.4); border-radius:12px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; transition:all 0.2s;'>
                         <div style='display:flex; align-items:center; gap:10px;'>
                             <div style='font-size:24px; background:#713f12; width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center;'>🟡</div>
                             <div>
@@ -247,11 +281,11 @@ public class QuizApp extends App {
                                 <div style='font-size:11px; color:#94a3b8;'>โจทย์ตรรกะและไหวพริบสายวิเคราะห์</div>
                             </div>
                         </div>
-                        <span class='badge-tag' style='background:#a16207;'>%d ข้อ</span>
+                        %s
                     </div>
 
                     <!-- ระดับยาก -->
-                    <div onclick='triggerEvent("quiz_select_difficulty", "hard")' style='cursor:pointer; background:linear-gradient(135deg, #181024, #12091c); border:1px solid rgba(239, 68, 68, 0.4); border-radius:12px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; transition:all 0.2s;'>
+                    <div %s style='cursor:pointer; background:linear-gradient(135deg, #181024, #12091c); border:1px solid rgba(239, 68, 68, 0.4); border-radius:12px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; transition:all 0.2s;'>
                         <div style='display:flex; align-items:center; gap:10px;'>
                             <div style='font-size:24px; background:#7f1d1d; width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center;'>🔴</div>
                             <div>
@@ -259,7 +293,7 @@ public class QuizApp extends App {
                                 <div style='font-size:11px; color:#94a3b8;'>โจทย์เชาว์ขั้นสูง ปริศนาสับขาหลอก</div>
                             </div>
                         </div>
-                        <span class='badge-tag' style='background:#b91c1c;'>%d ข้อ</span>
+                        %s
                     </div>
                 </div>
 
@@ -272,11 +306,10 @@ public class QuizApp extends App {
         """.formatted(
             currentUser.getStudentId(),
             roleBadge,
-            currentUser.getTotalScore(),
-            currentUser.getHighestScore(),
-            easyCount,
-            medCount,
-            hardCount,
+            scoreBannerHtml,
+            easyClick, easyBadge,
+            medClick, medBadge,
+            hardClick, hardBadge,
             adminBtnHtml
         );
     }
@@ -461,6 +494,17 @@ public class QuizApp extends App {
             rank++;
         }
 
+        String alertHtml = "";
+        if (!adminMessage.isEmpty()) {
+            alertHtml = "<div class='portal-alert-box' style='color:#4ade80; border-color:#22c55e66; margin-bottom:10px;'>✅ " + escapeHtml(adminMessage) + "</div>";
+        }
+
+        String resetBtnHtml = (currentUser != null && currentUser.isAdmin()) ? """
+            <button class='btn-portal-action' style='background:linear-gradient(135deg, #ef4444, #b91c1c); margin-bottom:10px;' onclick='if(confirm("⚠️ ยืนยันการรีเซ็ตคะแนนผู้เล่นทุกคนบนตารางแรงค์เป็น 0 ใช่หรือไม่?")){ if(window.resetLeaderboardInFirestore) window.resetLeaderboardInFirestore(); triggerEvent("quiz_reset_leaderboard", ""); }'>
+                🔄 รีเซ็ตคะแนนตารางแรงค์ทั้งหมด (Reset Leaderboard)
+            </button>
+        """ : "";
+
         return """
             <div class='custom-portal-card' style='padding: 16px 14px;'>
                 <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;'>
@@ -474,8 +518,10 @@ public class QuizApp extends App {
                     <button class='btn-quiz-logout' onclick='triggerEvent("quiz_view_lobby", "")'>🏠</button>
                 </div>
 
+                %s
+
                 <div style='overflow-x:auto; margin-bottom:14px; border-radius:8px; border:1px solid rgba(255,42,133,0.2);'>
-                    <table style='width:100%; border-collapse:collapse; font-size:12px; text-align:left;'>
+                    <table style='width:100%%; border-collapse:collapse; font-size:12px; text-align:left;'>
                         <thead>
                             <tr style='background:rgba(255,42,133,0.15); color:#ff75b5;'>
                                 <th style='padding:8px;'>อันดับ</th>
@@ -490,11 +536,13 @@ public class QuizApp extends App {
                     </table>
                 </div>
 
+                %s
+
                 <button class='btn-portal-action' onclick='triggerEvent("quiz_view_lobby", "")'>
                     🏠 กลับสู่หน้าเลือกโหมด (Lobby)
                 </button>
             </div>
-        """.formatted(rowsHtml.toString());
+        """.formatted(alertHtml, rowsHtml.toString(), resetBtnHtml);
     }
 
     private String escapeHtml(String text) {
@@ -641,8 +689,12 @@ public class QuizApp extends App {
                     <input type='text' id='adminExpInput' class='modern-form-input' placeholder='กรอกคำอธิบายเฉลย...'>
                 </div>
 
-                <button class='btn-portal-action' style='background:linear-gradient(135deg, #f59e0b, #d97706); margin-bottom:14px;' onclick='submitAdminQuestion()'>
+                <button class='btn-portal-action' style='background:linear-gradient(135deg, #f59e0b, #d97706); margin-bottom:8px;' onclick='submitAdminQuestion()'>
                     💾 บันทึกข้อสอบเข้าสู่ระบบ
+                </button>
+
+                <button class='btn-portal-action' style='background:linear-gradient(135deg, #ef4444, #b91c1c); margin-bottom:14px;' onclick='if(confirm("⚠️ ยืนยันการรีเซ็ตคะแนนผู้เล่นทุกคนบนตารางแรงค์เป็น 0 ใช่หรือไม่?")){ if(window.resetLeaderboardInFirestore) window.resetLeaderboardInFirestore(); triggerEvent("quiz_reset_leaderboard", ""); }'>
+                    🔄 รีเซ็ตคะแนนตารางแรงค์ทั้งหมด (Reset Leaderboard)
                 </button>
 
                 <div style='margin-top:14px; border-top:1px solid rgba(255,42,133,0.25); padding-top:12px; margin-bottom:12px;'>
@@ -675,6 +727,14 @@ public class QuizApp extends App {
                         alert('กรุณากรอกคำถามและตัวเลือกอย่างน้อย 2 ข้อ');
                         return;
                     }
+
+                    // ล้างค่าในช่องกรอกเพื่อให้ผู้ใช้เห็นว่าส่งข้อมูลแล้ว
+                    if (document.getElementById('adminQuestionInput')) document.getElementById('adminQuestionInput').value = '';
+                    if (document.getElementById('adminC0Input')) document.getElementById('adminC0Input').value = '';
+                    if (document.getElementById('adminC1Input')) document.getElementById('adminC1Input').value = '';
+                    if (document.getElementById('adminC2Input')) document.getElementById('adminC2Input').value = '';
+                    if (document.getElementById('adminC3Input')) document.getElementById('adminC3Input').value = '';
+                    if (document.getElementById('adminExpInput')) document.getElementById('adminExpInput').value = '';
 
                     // บันทึกลง Cloud Firestore ถ้ามี SDK
                     if (window.saveCustomQuestionToFirestore) {
@@ -774,6 +834,10 @@ public class QuizApp extends App {
     }
 
     public void selectDifficulty(String difficulty) {
+        if (currentUser != null && currentUser.isAdmin()) {
+            this.adminMessage = "⛔ บัญชีแอดมินไม่มีสิทธิ์ร่วมตอบคำถาม";
+            return;
+        }
         this.currentDifficulty = (difficulty != null) ? difficulty.toLowerCase() : "easy";
         this.activeQuestions = new ArrayList<>(questionsByDifficulty.getOrDefault(this.currentDifficulty, Collections.emptyList()));
         this.currentQuestionIndex = 0;
@@ -847,7 +911,16 @@ public class QuizApp extends App {
         }
     }
 
+    public void adminResetLeaderboard() {
+        if (currentUser == null || !currentUser.isAdmin()) return;
+        for (User u : userDatabase.values()) {
+            u.resetScores();
+        }
+        this.adminMessage = "รีเซ็ตคะแนนตารางจัดอันดับทั้งหมดเป็น 0 สำเร็จเรียบร้อยแล้ว!";
+    }
+
     public void answerQuestion(int choiceIndex) {
+        if (currentUser != null && currentUser.isAdmin()) return;
         if (isAnswered || activeQuestions.isEmpty()) return;
         this.isAnswered = true;
         this.lastSelectedChoice = choiceIndex;
