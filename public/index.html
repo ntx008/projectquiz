@@ -778,31 +778,31 @@
             // ซิงก์บัญชี Admin (6812247008) และผู้เล่นตัวอย่างขึ้น Firestore อัตโนมัติ
             setTimeout(async () => {
                 try {
-                    // Seed Admin
+                    // Seed Admin (คะแนนเริ่มต้น 0 ไม่เมคคะแนน)
                     await setDoc(doc(db, "users", "6812247008"), {
                         studentId: "6812247008",
                         password: "12345678",
                         role: "admin",
                         createdAt: new Date().toISOString(),
-                        highScore: 10,
-                        totalScore: 25,
-                        quizzesPlayed: 3
+                        highScore: 0,
+                        totalScore: 0,
+                        quizzesPlayed: 0
                     }, { merge: true });
 
-                    // Seed Player Demo
+                    // Seed Player Demo (คะแนนเริ่มต้น 0)
                     await setDoc(doc(db, "users", "6812345678"), {
                         studentId: "6812345678",
                         password: "12345678",
                         role: "player",
                         createdAt: new Date().toISOString(),
-                        highScore: 6,
-                        totalScore: 12,
-                        quizzesPlayed: 2
+                        highScore: 0,
+                        totalScore: 0,
+                        quizzesPlayed: 0
                     }, { merge: true });
 
                     console.log("🔥 [Firestore] Auto-seeded Admin (6812247008) & Demo player into 'users'");
 
-                    // โหลดข้อสอบที่ Admin เพิ่มไว้ก่อนหน้าเข้ามาเสริมในตัวเกม
+                    // โหลดข้อสอบที่ Admin เพิ่มไว้ก่อนหน้าเข้ามาในตัวเกม (ถ้ามี)
                     if (window.loadCustomQuestionsFromFirestore && window.QuizEngine) {
                         const customQs = await window.loadCustomQuestionsFromFirestore();
                         if (customQs && customQs.length > 0) {
@@ -849,8 +849,8 @@
         const QuizEngine = {
             ADMIN_ID: "6812247008",
             userDb: {
-                "6812247008": { password: "12345678", role: "admin", totalScore: 25, highScore: 10, quizzesPlayed: 3 },
-                "6812345678": { password: "12345678", role: "player", totalScore: 12, highScore: 6, quizzesPlayed: 2 }
+                "6812247008": { password: "12345678", role: "admin", totalScore: 0, highScore: 0, quizzesPlayed: 0 },
+                "6812345678": { password: "12345678", role: "player", totalScore: 0, highScore: 0, quizzesPlayed: 0 }
             },
             currentUser: null,
             currentRole: "player",
@@ -863,68 +863,11 @@
             screenState: "auth",
             currentDifficulty: "easy",
 
-            // คำถามแยกตาม 3 ระดับความยาก
+            // คำถามแยกตาม 3 ระดับความยาก (เริ่มต้นว่างเปล่า - ให้ Admin เป็นคนเพิ่มเองทั้งหมด)
             questionsByDifficulty: {
-                easy: [
-                    {
-                        q: "อะไรเอ่ย ยิ่งตัด ยิ่งยาว?",
-                        c: ["ก. เล็บมือ", "ข. เส้นผม", "ค. ถนน", "ง. บะหมี่กึ่งสำเร็จรูป"],
-                        a: 2,
-                        exp: "💡 เฉลย: ถนน! เพราะถ้าเราตัดถนนเพิ่มขึ้น ความยาวของถนนก็จะยาวขึ้นเรื่อยๆ"
-                    },
-                    {
-                        q: "อะไรเอ่ย ยิ่งเช็ด ยิ่งเปียก?",
-                        c: ["ก. ผ้าเช็ดตัว", "ข. ทิชชู่เปียก", "ค. แอลกอฮอล์", "ง. ฟองน้ำล้างจาน"],
-                        a: 0,
-                        exp: "💡 เฉลย: ผ้าเช็ดตัว! เพราะยิ่งเราใช้เช็ดตัวเราให้แห้ง ผ้าเช็ดตัวก็จะยิ่งเปียกน้ำ"
-                    },
-                    {
-                        q: "ปลาอะไรเอ่ย ขี้เกียจที่สุดในโลก?",
-                        c: ["ก. ปลาวาฬ", "ข. ปลานิล", "ค. ปลาช่อน", "ง. ปลากระป๋อง"],
-                        a: 0,
-                        exp: "💡 เฉลย: ปลาวาฬ! เพราะชอบ 'วาน' (วาฬ) ให้คนอื่นทำแทนตลอดเวลา"
-                    }
-                ],
-                medium: [
-                    {
-                        q: "เดือนอะไรมี 30 วัน?",
-                        c: ["ก. เมษายน", "ข. กันยายน", "ค. พฤศจิกายน", "ง. ทุกเดือน (ยกเว้น ก.พ.) มี 30 วัน"],
-                        a: 3,
-                        exp: "💡 เฉลย: ทุกเดือนที่มี 31 วัน ก็ย่อมมีวันที่ 30 อยู่ข้างในด้วยเสมอ!"
-                    },
-                    {
-                        q: "รถไฟไฟฟ้าแล่นจากทิศเหนือไปทิศใต้ ลมพัดจากทิศตะวันออกไปทิศตะวันตก ควันรถไฟจะพัดไปทางทิศใด?",
-                        c: ["ก. ทิศตะวันตก", "ข. ทิศใต้", "ค. ทิศตะวันออกเฉียงเหนือ", "ง. ไม่มีควัน"],
-                        a: 3,
-                        exp: "💡 เฉลย: ไม่มีควัน! เพราะเป็น 'รถไฟไฟฟ้า' จึงไม่มีควันพวยพุ่งออกมา"
-                    },
-                    {
-                        q: "มีกระดาษ 1 แผ่น ฉีกครึ่งไปเรื่อยๆ ทั้งหมด 5 ครั้ง จะได้กระดาษกี่ชิ้น?",
-                        c: ["ก. 10 ชิ้น", "ข. 16 ชิ้น", "ค. 25 ชิ้น", "ง. 32 ชิ้น"],
-                        a: 3,
-                        exp: "💡 เฉลย: 32 ชิ้น! คำนวณจาก 2^5 = 32 ชิ้น ตามหลักยกกำลังสอง"
-                    }
-                ],
-                hard: [
-                    {
-                        q: "ถ้า 1 = 5, 2 = 25, 3 = 125, 4 = 625 แล้ว 5 เท่ากับเท่าไร?",
-                        c: ["ก. 3125", "ข. 1", "ค. 2500", "ง. 1000"],
-                        a: 1,
-                        exp: "💡 เฉลย: 1! เพราะเงื่อนไขบรรทัดแรกบอกไว้ชัดเจนแล้วว่า '1 = 5' ดังนั้น 5 ก็ต้องเท่ากับ 1"
-                    },
-                    {
-                        q: "ชายคนหนึ่งผลักรถยนต์ไปยังโรงแรม พอถึงโรงแรม เขารู้ทันทีว่าเขาล้มละลาย ถามว่าทำไม?",
-                        c: ["ก. ค่าห้องพักโรงแรมแพง", "ข. โดนตำรวจจับ", "ค. เขากำลังเล่นเกมเศรษฐี (Monopoly)", "ง. ค่าซ่อมรถแพงมาก"],
-                        a: 2,
-                        exp: "💡 เฉลย: เขากำลังเล่นบอร์ดเกม 'เกมเศรษฐี' (Monopoly) แล้วตัวเดินรถยนต์ตกช่องโรงแรมคู่แข่ง!"
-                    },
-                    {
-                        q: "อะไรเอ่ย มีตาข้างเดียว แต่ไม่สามารถมองเห็นสิ่งใดได้เลย?",
-                        c: ["ก. พายุไซโคลน", "ข. เข็มเย็บผ้า", "ค. มะพร้าว", "ง. ปูเสฉวน"],
-                        a: 1,
-                        exp: "💡 เฉลย: เข็มเย็บผ้า! เพราะมีช่องร้อยด้ายเรียกว่า 'รูเข็ม/ตาเข็ม' แต่ไม่มีลูกตามองเห็น"
-                    }
-                ]
+                easy: [],
+                medium: [],
+                hard: []
             },
 
             activeQuestions: [],
@@ -1395,7 +1338,8 @@
                     return `
                         <div class='custom-portal-card' style='text-align:center; padding:30px 16px;'>
                             <div style='font-size:40px; margin-bottom:10px;'>📭</div>
-                            <h3 style='color:#ff75b5; margin-bottom:10px;'>ยังไม่มีข้อสอบในระดับนี้</h3>
+                            <h3 style='color:#ff75b5; margin-bottom:8px;'>ยังไม่มีข้อสอบในระดับนี้</h3>
+                            <p style='color:#94a3b8; font-size:12px; margin-bottom:18px;'>รอ Admin (รหัส 6812247008) เข้ามาเพิ่มข้อสอบก่อนนะครับ</p>
                             <button class='btn-portal-action' onclick='QuizEngine.openLobby()'>🏠 กลับหน้าหลัก</button>
                         </div>
                     `;

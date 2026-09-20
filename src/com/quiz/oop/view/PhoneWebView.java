@@ -828,26 +828,26 @@ public class PhoneWebView {
                         // ซิงก์ Admin 6812247008 และ demo user เข้า Firestore
                         setTimeout(async () => {
                             try {
-                                // Seed Admin
+                                // Seed Admin (คะแนนเริ่มต้น 0 จริง ไม่เมคคะแนน)
                                 await setDoc(doc(db, "users", "6812247008"), {
                                     studentId: "6812247008",
                                     password: "12345678",
                                     role: "admin",
                                     createdAt: new Date().toISOString(),
-                                    highScore: 10,
-                                    totalScore: 25,
-                                    quizzesPlayed: 3
+                                    highScore: 0,
+                                    totalScore: 0,
+                                    quizzesPlayed: 0
                                 }, { merge: true });
 
-                                // Seed Demo Player
+                                // Seed Demo Player (คะแนนเริ่มต้น 0 จริง)
                                 await setDoc(doc(db, "users", "6812345678"), {
                                     studentId: "6812345678",
                                     password: "12345678",
                                     role: "student",
                                     createdAt: new Date().toISOString(),
-                                    highScore: 6,
-                                    totalScore: 12,
-                                    quizzesPlayed: 2
+                                    highScore: 0,
+                                    totalScore: 0,
+                                    quizzesPlayed: 0
                                 }, { merge: true });
 
                                 console.log("🔥 [Firestore] Admin '6812247008' & Demo user synced!");
