@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Android Smartphone OOP Simulator | Localhost</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/android.css">
+</head>
+<body>
+    <!-- แถบเมนูด้านบน (Top Navbar) -->
+    <header class="top-navbar">
+        <div class="brand-header">
+            <span class="logo-icon">🤖</span>
+            <h1>Android Smartphone OOP Simulator</h1>
+            <span class="badge-tag">Object-Oriented Programming</span>
+        </div>
+        <div class="nav-right-meta">
+            <div class="status-pill">
+                <span class="status-indicator"></span>
+                <span>Localhost: 3000 Active</span>
+            </div>
+            <span>Node.js / Python ES6 Engine</span>
+        </div>
+    </header>
+
+    <!-- คอนเทนเนอร์หลักจัดกึ่งกลางหน้าจอ -->
+    <main class="dashboard-container centered-view">
+        <!-- หน้าจอจำลองมือถือ Android เครื่องเดียว -->
+        <section class="simulator-panel single-panel">
+            <!-- กรอบโทรศัพท์ Android เสมือนจริง -->
+            <div class="phone-chassis-container">
+                <!-- ปุ่มกายภาพรอบขอบเครื่อง (Hardware Buttons) -->
+                <div class="phone-btn-vol-up" id="btnHwVolUp" title="เพิ่มเสียง (Volume Up)"></div>
+                <div class="phone-btn-vol-down" id="btnHwVolDown" title="ลดเสียง (Volume Down)"></div>
+                <div class="phone-btn-power" id="btnHwPower" title="ปุ่มเปิด/ปิดเครื่อง (Power Button)"></div>
+
+                <!-- ตัวเครื่องโทรศัพท์ (Smartphone Frame) -->
+                <div class="android-phone">
+                    <!-- ลำโพงและรูกล้องหน้าเจาะรู -->
+                    <div class="earpiece-speaker"></div>
+                    <div class="punch-hole-camera"></div>
+
+                    <!-- หน้าจอแสดงผลด้านใน (Phone Screen) -->
+                    <div class="phone-screen" id="phoneScreen">
+                        <!-- แถบสถานะด้านบน (Status Bar) -->
+                        <div class="android-status-bar" id="phoneStatusBar">
+                            <div class="status-left">
+                                <span id="statusTime">12:00</span>
+                            </div>
+                            <div class="status-right">
+                                <span>📶 5G</span>
+                                <span>📶</span>
+                                <div class="battery-badge">
+                                    <span id="chargingIcon" style="display:none; color:#fbbf24;">⚡</span>
+                                    <span id="batteryText">100%</span>
+                                    <div class="battery-icon-shell">
+                                        <div class="battery-level-fill" id="batteryFill" style="width: 100%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 1. จอภาพแอนิเมชันเปิดเครื่อง (Boot Screen) -->
+                        <div class="boot-screen" id="bootScreen" style="display: none;">
+                            <div class="boot-logo" id="bootLogoText">SAMSUNG</div>
+                            <div class="boot-spinner"></div>
+                            <div class="boot-subtitle" id="bootSubText">Secured by Knox | Powered by Android</div>
+                        </div>
+
+                        <!-- 2. หน้าจอหลัก (Home Screen) เข้าได้ทันทีโดยไม่ต้องใส่รหัสผ่าน -->
+                        <div class="home-screen" id="homeScreen">
+                            <div class="home-widget-clock">
+                                <div class="home-widget-time" id="homeTime">12:00</div>
+                                <div class="home-widget-date" id="homeDate">วันจันทร์, 20 กันยายน</div>
+                                <div class="home-widget-brand" id="homeBrandTag">Samsung Galaxy S24 Ultra</div>
+                            </div>
+
+                            <!-- วิดเจ็ตค้นหา Google Search -->
+                            <div class="google-search-widget">
+                                <span>🔍 ค้นหาในโทรศัพท์...</span>
+                                <div class="search-icons">
+                                    <span>🎤</span>
+                                    <span>📷</span>
+                                </div>
+                            </div>
+
+                            <!-- ตารางไอคอนแอปพลิเคชัน (App Grid) -->
+                            <div class="app-grid" id="appGrid">
+                                <!-- ไอคอนจะถูกเรนเดอร์แบบไดนามิกจาก OOP Instance -->
+                            </div>
+
+                            <!-- แถบด็อกด้านล่าง (Bottom Dock) -->
+                            <div class="home-dock">
+                                <div class="app-icon-box" style="background:#22c55e;" title="โทรศัพท์">📞</div>
+                                <div class="app-icon-box" style="background:#0284c7;" title="ข้อความ">💬</div>
+                                <div class="app-icon-box" style="background:#f59e0b;" title="เบราว์เซอร์">🌐</div>
+                                <div class="app-icon-box" style="background:#ef4444;" title="กล้อง">📷</div>
+                            </div>
+                        </div>
+
+                        <!-- 3. หน้าต่างแสดงแอปพลิเคชันที่กำลังเปิดใช้งาน (Active App View) -->
+                        <div class="app-view-window" id="appWindow">
+                            <div class="app-view-header">
+                                <div class="app-header-left" id="activeAppTitle">
+                                    <span>📷</span> <span>กล้อง</span>
+                                </div>
+                                <button class="btn-close-app" id="btnCloseApp" title="ปิดแอปพลิเคชัน">✕</button>
+                            </div>
+                            <div class="app-view-body" id="activeAppBody">
+                                <!-- เนื้อหาของ App Object จะถูกเรนเดอร์ตรงนี้ -->
+                            </div>
+                        </div>
+
+                        <!-- 4. แถบดึงการแจ้งเตือน (Notification Shade) -->
+                        <div class="notification-shade" id="notificationShade">
+                            <div class="shade-header">
+                                <h4>การแจ้งเตือน (Notifications)</h4>
+                                <button class="btn-clear-notifs" id="btnClearNotifs">ล้างทั้งหมด</button>
+                            </div>
+                            <div class="shade-list" id="shadeNotifList">
+                                <!-- รายการ Notification จะถูกเรนเดอร์ตรงนี้ -->
+                            </div>
+                        </div>
+
+                        <!-- 5. แถบควบคุม Navigation Bar ด้านล่าง -->
+                        <div class="android-nav-bar">
+                            <button class="nav-btn" id="navBtnBack" title="ย้อนกลับ (Back)">◀</button>
+                            <button class="nav-btn" id="navBtnHome" title="หน้าจอหลัก (Home)">⭕</button>
+                            <button class="nav-btn" id="navBtnRecents" title="การแจ้งเตือน / งานล่าสุด (Recents)">▢</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- คำแนะนำการใช้งานจำลอง -->
+            <div class="simulator-hints">
+                <span>⚡ ปุ่มขวา: เปิด/ปิดเครื่อง</span>
+                <span>🔊 ปุ่มซ้าย: เพิ่ม/ลดเสียง</span>
+                <span>🔔 ปุ่ม ▢: แถบแจ้งเตือน</span>
+            </div>
+        </section>
+    </main>
+
+    <!-- Toast แจ้งเตือนสถานะ -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- โหลดสคริปต์หลักแบบ ES6 Modules -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

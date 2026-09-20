@@ -1,0 +1,927 @@
+/* ==========================================================================
+   Android Phone Mockup & Mobile OS UI Stylesheet
+   ========================================================================== */
+
+:root {
+    --phone-width: 360px;
+    --phone-height: 720px;
+    --phone-radius: 42px;
+    --phone-border: 12px;
+    --bezel-color: #1a1a24;
+    --bezel-accent: #2d2d3a;
+    --accent-color: #3ddc84;
+}
+
+/* กรอบตัวเครื่องโทรศัพท์ (Smartphone Chassis) */
+.phone-chassis-container {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px 30px;
+    perspective: 1000px;
+}
+
+.android-phone {
+    position: relative;
+    width: var(--phone-width);
+    height: var(--phone-height);
+    background: #000;
+    border-radius: var(--phone-radius);
+    box-shadow: 
+        0 0 0 var(--phone-border) var(--bezel-color),
+        0 0 0 calc(var(--phone-border) + 2px) var(--bezel-accent),
+        0 25px 60px rgba(0, 0, 0, 0.6),
+        0 5px 15px rgba(0, 0, 0, 0.4);
+    overflow: hidden;
+    user-select: none;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* ปุ่มจริงรอบตัวเครื่อง (Physical Hardware Buttons) */
+.phone-btn-power {
+    position: absolute;
+    right: -17px;
+    top: 170px;
+    width: 6px;
+    height: 55px;
+    background: #333344;
+    border-radius: 0 4px 4px 0;
+    cursor: pointer;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.5);
+    transition: transform 0.1s;
+    z-index: 100;
+}
+.phone-btn-power:active {
+    transform: translateX(-2px);
+    background: #4ade80;
+}
+
+.phone-btn-vol-up {
+    position: absolute;
+    left: -17px;
+    top: 150px;
+    width: 6px;
+    height: 48px;
+    background: #333344;
+    border-radius: 4px 0 0 4px;
+    cursor: pointer;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.5);
+    z-index: 100;
+}
+.phone-btn-vol-up:active {
+    transform: translateX(2px);
+}
+
+.phone-btn-vol-down {
+    position: absolute;
+    left: -17px;
+    top: 210px;
+    width: 6px;
+    height: 48px;
+    background: #333344;
+    border-radius: 4px 0 0 4px;
+    cursor: pointer;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.5);
+    z-index: 100;
+}
+.phone-btn-vol-down:active {
+    transform: translateX(2px);
+}
+
+/* รูกล้องหน้า (Punch-hole Camera) */
+.punch-hole-camera {
+    position: absolute;
+    top: 11px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 14px;
+    height: 14px;
+    background: #050508;
+    border: 1.5px solid #1a1a24;
+    border-radius: 50%;
+    z-index: 999;
+    box-shadow: inset 0 0 3px #1e293b;
+}
+
+/* ลำโพงสนทนา (Earpiece Speaker) */
+.earpiece-speaker {
+    position: absolute;
+    top: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 50px;
+    height: 3px;
+    background: #111827;
+    border-radius: 3px;
+    z-index: 998;
+}
+
+/* จอด้านใน (Phone Display) */
+.phone-screen {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+
+/* หน้าจอปิดเครื่อง (Power Off State) */
+.phone-screen.screen-off {
+    background: #000 !important;
+}
+.phone-screen.screen-off > *:not(.punch-hole-camera):not(.earpiece-speaker) {
+    display: none !important;
+}
+
+/* แถบสถานะด้านบน (Status Bar) */
+.android-status-bar {
+    position: relative;
+    height: 34px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 18px 0;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    z-index: 50;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.4), transparent);
+}
+
+.status-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.status-right {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.battery-badge {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.battery-icon-shell {
+    position: relative;
+    width: 19px;
+    height: 10px;
+    border: 1.5px solid #fff;
+    border-radius: 3px;
+    padding: 1px;
+}
+.battery-icon-shell::after {
+    content: '';
+    position: absolute;
+    right: -3.5px;
+    top: 2px;
+    width: 2px;
+    height: 4px;
+    background: #fff;
+    border-radius: 0 1px 1px 0;
+}
+.battery-level-fill {
+    height: 100%;
+    background: #3ddc84;
+    border-radius: 1.5px;
+    transition: width 0.3s ease, background 0.3s;
+}
+.battery-level-fill.low { background: #ef4444; }
+.battery-level-fill.medium { background: #f59e0b; }
+
+/* จอภาพบูตเครื่อง (Boot Animation Screen) */
+.boot-screen {
+    position: absolute;
+    inset: 0;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 800;
+    text-align: center;
+    gap: 16px;
+}
+.boot-logo {
+    font-size: 34px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    animation: bootPulse 1.8s infinite ease-in-out;
+}
+.boot-subtitle {
+    font-size: 13px;
+    color: #9ca3af;
+    letter-spacing: 1px;
+}
+.boot-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(255, 255, 255, 0.15);
+    border-top-color: var(--accent-color);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes bootPulse {
+    0%, 100% { opacity: 0.5; transform: scale(0.96); }
+    50% { opacity: 1; transform: scale(1.04); }
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* หน้าจอล็อก (Lock Screen) */
+.lock-screen {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(145deg, #1e1b4b, #0f172a);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 50px 24px 70px;
+    z-index: 300;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+}
+
+.lock-clock-section {
+    text-align: center;
+    margin-top: 15px;
+}
+.lock-time {
+    font-size: 56px;
+    font-weight: 200;
+    letter-spacing: -1px;
+    line-height: 1;
+}
+.lock-date {
+    font-size: 14px;
+    color: #cbd5e1;
+    margin-top: 6px;
+    font-weight: 400;
+}
+
+.lock-pin-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+}
+.pin-instruction {
+    font-size: 13px;
+    color: #94a3b8;
+}
+.pin-dots {
+    display: flex;
+    gap: 12px;
+}
+.pin-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255, 255, 255, 0.6);
+    transition: all 0.2s;
+}
+.pin-dot.filled {
+    background: #fff;
+    border-color: #fff;
+    transform: scale(1.15);
+}
+
+.pin-keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px 20px;
+    width: 220px;
+}
+.keypad-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(10px);
+    color: #fff;
+    font-size: 20px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background 0.15s, transform 0.1s;
+    margin: 0 auto;
+}
+.keypad-btn:hover { background: rgba(255, 255, 255, 0.22); }
+.keypad-btn:active { transform: scale(0.92); background: rgba(255, 255, 255, 0.35); }
+.keypad-btn.key-action { font-size: 16px; background: transparent; }
+
+/* หน้าจอหลัก (Home Screen) */
+.home-screen {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 10px 16px 14px;
+    background: linear-gradient(to bottom, #111827, #0f172a, #030712);
+    background-size: cover;
+    background-position: center;
+    z-index: 100;
+}
+
+/* วิดเจ็ตหน้าจอโฮม */
+.home-widget-clock {
+    padding: 10px 8px;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+.home-widget-time {
+    font-size: 38px;
+    font-weight: 300;
+}
+.home-widget-date {
+    font-size: 13px;
+    color: #e2e8f0;
+}
+.home-widget-brand {
+    font-size: 11px;
+    color: var(--accent-color);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-top: 3px;
+}
+
+/* แถบค้นหา Google Search Widget */
+.google-search-widget {
+    margin: 12px 0 16px;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(15px);
+    border-radius: 24px;
+    padding: 9px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    color: #e2e8f0;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.search-icons {
+    display: flex;
+    gap: 8px;
+}
+
+/* ตารางแสดงไอคอนแอปบน Home Screen */
+.app-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px 8px;
+    padding: 6px 0;
+}
+
+.app-icon-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+.app-icon-item:hover {
+    transform: translateY(-2px);
+}
+.app-icon-item:active {
+    transform: scale(0.92);
+}
+
+.app-icon-box {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    position: relative;
+}
+.app-name-label {
+    font-size: 11px;
+    color: #f1f5f9;
+    text-align: center;
+    max-width: 64px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+}
+
+/* แถบด็อกด้านล่าง (Bottom Dock) */
+.home-dock {
+    margin-top: auto;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px);
+    border-radius: 24px;
+    display: flex;
+    justify-content: space-around;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* แถบควบคุม Navigation Bar ด้านล่าง (Android Gestures/Buttons) */
+.android-nav-bar {
+    height: 38px;
+    background: rgba(0, 0, 0, 0.65);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 500;
+}
+.nav-btn {
+    background: transparent;
+    border: none;
+    color: #cbd5e1;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 6px 20px;
+    border-radius: 12px;
+    transition: background 0.15s, color 0.15s;
+}
+.nav-btn:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.nav-btn:active { transform: scale(0.9); }
+
+/* หน้าต่างแสดงแอปพลิเคชันที่กำลังเปิดใช้งาน (App View Container) */
+.app-view-window {
+    position: absolute;
+    inset: 34px 0 38px 0;
+    background: #0f172a;
+    z-index: 250;
+    display: none;
+    flex-direction: column;
+    overflow-y: auto;
+    animation: appOpen 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.app-view-window.active {
+    display: flex;
+}
+
+@keyframes appOpen {
+    from { opacity: 0; transform: scale(0.92); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.app-view-header {
+    height: 48px;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(30, 41, 59, 0.85);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+.app-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+}
+.btn-close-app {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+.app-view-body {
+    flex: 1;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ==========================================================================
+   UI สำหรับแอปพลิเคชันต่างๆ ในโทรศัพท์
+   ========================================================================== */
+
+/* Camera App */
+.app-camera-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+.camera-lens-view {
+    flex: 1;
+    background: #020617;
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #1e293b;
+    background-size: cover;
+    background-position: center;
+}
+.camera-brand-watermark {
+    position: absolute;
+    bottom: 10px;
+    left: 12px;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.6);
+    background: rgba(0, 0, 0, 0.5);
+    padding: 2px 8px;
+    border-radius: 8px;
+}
+.camera-controls {
+    padding: 14px 0 6px;
+}
+.camera-mode-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 12px;
+}
+.camera-mode-tabs span.active {
+    color: #fbbf24;
+    font-weight: 600;
+}
+.camera-shutter-row {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+.btn-camera-shutter {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: #fff;
+    border: 4px solid #334155;
+    cursor: pointer;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+    transition: transform 0.1s;
+}
+.btn-camera-shutter:active {
+    transform: scale(0.88);
+}
+.btn-shutter-filter, .btn-switch-camera {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: #1e293b;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+/* Music App */
+.app-music-view {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    padding: 20px 10px;
+}
+.music-disc-wrapper {
+    width: 170px;
+    height: 170px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #1e293b 20%, #0f172a 70%, #020617 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6), inset 0 0 15px rgba(255,255,255,0.05);
+    margin-bottom: 24px;
+    border: 3px solid #334155;
+}
+.music-disc-wrapper.spinning {
+    animation: discSpin 8s linear infinite;
+}
+@keyframes discSpin {
+    to { transform: rotate(360deg); }
+}
+.music-disc-center {
+    font-size: 40px;
+}
+.music-info h3 {
+    margin: 0;
+    font-size: 17px;
+    color: #f8fafc;
+}
+.music-info p {
+    margin: 4px 0 18px;
+    font-size: 13px;
+    color: #94a3b8;
+}
+.music-progress-bar {
+    width: 100%;
+    height: 4px;
+    background: #334155;
+    border-radius: 2px;
+    margin-bottom: 22px;
+}
+.progress-fill {
+    height: 100%;
+    background: #38bdf8;
+    border-radius: 2px;
+}
+.music-controls {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+.btn-music-ctrl {
+    background: #1e293b;
+    border: none;
+    color: #fff;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    font-size: 18px;
+    cursor: pointer;
+}
+.btn-music-ctrl.play-pause {
+    width: 58px;
+    height: 58px;
+    background: #38bdf8;
+    color: #0f172a;
+    font-size: 22px;
+}
+
+/* Settings App */
+.app-settings-view {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.settings-header h2 {
+    font-size: 18px;
+    margin: 0;
+}
+.device-badge {
+    background: #1e293b;
+    padding: 3px 8px;
+    border-radius: 8px;
+    font-size: 11px;
+    color: var(--accent-color);
+}
+.settings-section {
+    background: #1e293b;
+    border-radius: 14px;
+    padding: 12px;
+}
+.section-title {
+    font-size: 11px;
+    color: #94a3b8;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+.settings-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 13px;
+}
+.settings-item:last-child {
+    border-bottom: none;
+}
+.code-badge {
+    background: #0f172a;
+    color: #38bdf8;
+    font-family: monospace;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+.code-badge-chain {
+    background: #0f172a;
+    color: #a78bfa;
+    font-family: monospace;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+}
+.settings-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+.btn-setting-action {
+    background: #334155;
+    border: none;
+    color: #fff;
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+}
+.btn-setting-action.danger {
+    background: #7f1d1d;
+}
+
+/* Play Store App */
+.app-store-view {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.store-search-bar {
+    background: #1e293b;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    color: #94a3b8;
+}
+.store-banner {
+    background: linear-gradient(135deg, #0284c7, #0369a1);
+    border-radius: 12px;
+    padding: 12px;
+}
+.store-banner h3 { margin: 0; font-size: 15px; }
+.store-banner p { margin: 4px 0 0; font-size: 11px; color: #bae6fd; }
+.store-app-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.store-app-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #1e293b;
+    padding: 10px;
+    border-radius: 12px;
+}
+.store-app-icon {
+    font-size: 28px;
+    width: 44px;
+    height: 44px;
+    background: #0f172a;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.store-app-details {
+    flex: 1;
+}
+.store-app-details h4 { margin: 0; font-size: 13px; }
+.store-app-details p { margin: 2px 0; font-size: 11px; color: #94a3b8; }
+.store-app-details small { color: #64748b; font-size: 10px; }
+.btn-store-install {
+    background: #0284c7;
+    border: none;
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.btn-store-uninstall {
+    background: #475569;
+    border: none;
+    color: #cbd5e1;
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+/* Notes App */
+.app-notes-view {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.notes-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.notes-header h3 { margin: 0; font-size: 16px; }
+.btn-add-note {
+    background: #eab308;
+    color: #000;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.notes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.note-card {
+    background: #1e293b;
+    border-left: 3px solid #eab308;
+    padding: 10px;
+    border-radius: 8px;
+}
+.note-card h4 { margin: 0 0 4px; font-size: 13px; }
+.note-card pre {
+    margin: 0;
+    font-family: inherit;
+    font-size: 12px;
+    color: #cbd5e1;
+    white-space: pre-wrap;
+}
+.note-date {
+    display: block;
+    margin-top: 6px;
+    font-size: 10px;
+    color: #64748b;
+    text-align: right;
+}
+
+/* แถบการแจ้งเตือนดึงลง (Notification Shade) */
+.notification-shade {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 75%;
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(25px);
+    z-index: 400;
+    border-radius: 0 0 28px 28px;
+    transform: translateY(-100%);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    padding: 40px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+}
+.notification-shade.open {
+    transform: translateY(0);
+}
+.shade-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+.shade-header h4 { margin: 0; font-size: 13px; color: #94a3b8; }
+.btn-clear-notifs {
+    background: none;
+    border: none;
+    color: #38bdf8;
+    font-size: 12px;
+    cursor: pointer;
+}
+.shade-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.notif-card {
+    background: #1e293b;
+    border-radius: 12px;
+    padding: 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    border: 1px solid rgba(255,255,255,0.06);
+}
+.notif-icon { font-size: 20px; }
+.notif-content { flex: 1; }
+.notif-top { display: flex; justify-content: space-between; }
+.notif-title { font-size: 12px; font-weight: 600; color: #f8fafc; }
+.notif-time { font-size: 10px; color: #64748b; }
+.notif-desc { font-size: 11px; color: #cbd5e1; margin-top: 2px; }
