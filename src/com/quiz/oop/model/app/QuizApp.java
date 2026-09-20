@@ -9,78 +9,135 @@ import java.util.*;
  * [Lecture 3, 4, 5.1 & 5.2: OOP & MVC Application]
  * QuizApp: แอปพลิเคชัน "เกมตอบปัญหาเชาว์ปัญญา"
  * ----------------------------------------------------------------------------
- * มีหน้าจอ Login และ Register อยู่ด้วยกัน สไตล์ Cyber CPE Portal ตามภาพ
- * มีระบบคำถามเชาว์ปัญญา กวนๆ ชวนคิด ตรวจคะแนนและบันทึกสถิติ
+ * - สิทธิ์ Admin: รหัส 6812247008 สามารถเพิ่มคำถาม 3 ระดับ (ง่าย/กลาง/ยาก)
+ * - สิทธิ์ Player: ผู้เล่นทั่วไปสามารถเลือกเล่นระดับใดก็ได้ ตอบถูกได้ +1 คะแนน
+ * - ระบบสะสมคะแนน และหน้าตารางแรงค์ (Leaderboard)
+ * - ธีม Pink & Black Cyber ทันสมัย
  * ============================================================================
  */
 public class QuizApp extends App {
+
+    public enum ScreenState {
+        AUTH, LOBBY, GAME, RESULT, LEADERBOARD, ADMIN_PANEL
+    }
+
     private final Map<String, User> userDatabase;
     private User currentUser = null;
     private boolean isRegisterTab = false;
     private String authMessage = "";
     private boolean isAuthSuccess = true;
+    private String adminMessage = "";
 
-    // Game state
-    private final List<QuizQuestion> questions;
+    // Screen navigation
+    private ScreenState screenState = ScreenState.AUTH;
+    private String currentDifficulty = "easy";
+
+    // Questions organized by difficulty
+    private final Map<String, List<QuizQuestion>> questionsByDifficulty;
+
+    // Active quiz session state
+    private List<QuizQuestion> activeQuestions = new ArrayList<>();
     private int currentQuestionIndex = 0;
     private int score = 0;
     private boolean isAnswered = false;
     private int lastSelectedChoice = -1;
-    private boolean isGameOver = false;
 
     public QuizApp() {
         super("เกมตอบปัญหาเชาว์ปัญญา", "com.cpe.quiz", "🧩", 28);
 
         this.userDatabase = new HashMap<>();
-        // บัญชีทดสอบเริ่มต้น (รหัสนักศึกษา 10 หลัก ตามตัวอย่างในภาพ)
-        userDatabase.put("6812345678", new User("6812345678", "12345678"));
+        // บัญชี Admin พิเศษ (ตามโจทย์ระบุ รหัส 6812247008)
+        User adminUser = new User(User.ADMIN_ID, "12345678");
+        adminUser.addScore(15);
+        userDatabase.put(User.ADMIN_ID, adminUser);
 
-        this.questions = new ArrayList<>();
-        loadQuestions();
+        // บัญชีผู้เล่นทดสอบตัวอย่าง
+        User demoUser = new User("6812345678", "12345678");
+        demoUser.addScore(8);
+        userDatabase.put("6812345678", demoUser);
+
+        this.questionsByDifficulty = new HashMap<>();
+        this.questionsByDifficulty.put("easy", new ArrayList<>());
+        this.questionsByDifficulty.put("medium", new ArrayList<>());
+        this.questionsByDifficulty.put("hard", new ArrayList<>());
+
+        loadDefaultQuestions();
     }
 
-    private void loadQuestions() {
-        questions.add(new QuizQuestion(
+    private void loadDefaultQuestions() {
+        // 🟢 ระดับง่าย (Easy)
+        addQuestion("easy", new QuizQuestion(
             "อะไรเอ่ย ยิ่งตัด ยิ่งยาว?",
             new String[]{"ก. เล็บมือ", "ข. เส้นผม", "ค. ถนน", "ง. บะหมี่กึ่งสำเร็จรูป"},
             2,
-            "💡 เฉลย: ถนน! เพราะถ้าเราตัดถนนเพิ่มขึ้น ความยาวของถนนก็จะยาวขึ้นเรื่อยๆ"
+            "💡 เฉลย: ถนน! เพราะยิ่งเราสร้างหรือตัดถนนเพิ่ม ความยาวของถนนก็ยิ่งยาวขึ้น",
+            "easy"
         ));
-
-        questions.add(new QuizQuestion(
-            "รถไฟไฟฟ้าแล่นจากทิศเหนือไปทิศใต้ ลมพัดจากทิศตะวันออกไปทิศตะวันตก ควันรถไฟจะพัดไปทางทิศใด?",
-            new String[]{"ก. ทิศตะวันตก", "ข. ทิศใต้", "ค. ทิศตะวันออกเฉียงเหนือ", "ง. ไม่มีควัน"},
-            3,
-            "💡 เฉลย: ไม่มีควัน! เพราะเป็น 'รถไฟไฟฟ้า' จึงไม่มีควันพวยพุ่งออกมา"
-        ));
-
-        questions.add(new QuizQuestion(
-            "เดือนอะไรมี 30 วัน?",
-            new String[]{"ก. เมษายน", "ข. กันยายน", "ค. พฤศจิกายน", "ง. ทุกเดือน (ยกเว้น ก.พ.) มี 30 วัน"},
-            3,
-            "💡 เฉลย: ทุกเดือนที่มี 31 วัน ก็ย่อมมีวันที่ 30 อยู่ข้างในด้วยเสมอ!"
-        ));
-
-        questions.add(new QuizQuestion(
+        addQuestion("easy", new QuizQuestion(
             "อะไรเอ่ย ยิ่งเช็ด ยิ่งเปียก?",
             new String[]{"ก. ผ้าเช็ดตัว", "ข. ทิชชู่เปียก", "ค. แอลกอฮอล์", "ง. ฟองน้ำล้างจาน"},
             0,
-            "💡 เฉลย: ผ้าเช็ดตัว! เพราะยิ่งเราใช้เช็ดตัวเราให้แห้ง ผ้าเช็ดตัวก็จะยิ่งเปียกน้ำ"
+            "💡 เฉลย: ผ้าเช็ดตัว! เพราะยิ่งเราใช้เช็ดตัวให้แห้ง ผ้าเช็ดตัวก็ยิ่งเปียกน้ำ",
+            "easy"
         ));
-
-        questions.add(new QuizQuestion(
-            "มีกระดาษ 1 แผ่น ฉีกครึ่งไปเรื่อยๆ ทั้งหมด 5 ครั้ง จะได้กระดาษกี่ชิ้น?",
-            new String[]{"ก. 10 ชิ้น", "ข. 16 ชิ้น", "ค. 25 ชิ้น", "ง. 32 ชิ้น"},
-            3,
-            "💡 เฉลย: 32 ชิ้น! คำนวณจาก 2^5 = 32 ชิ้น ตามหลักยกกำลังสอง"
-        ));
-
-        questions.add(new QuizQuestion(
+        addQuestion("easy", new QuizQuestion(
             "ปลาอะไรเอ่ย ขี้เกียจที่สุดในโลก?",
             new String[]{"ก. ปลาวาฬ", "ข. ปลานิล", "ค. ปลาช่อน", "ง. ปลากระป๋อง"},
             0,
-            "💡 เฉลย: ปลาวาฬ! เพราะชอบ 'วาน' (วาฬ) ให้คนอื่นทำแทนตลอดเวลา"
+            "💡 เฉลย: ปลาวาฬ! เพราะชอบ 'วาน' (วาฬ) ให้คนอื่นทำแทนตลอดเวลา",
+            "easy"
         ));
+
+        // 🟡 ระดับกลาง (Medium)
+        addQuestion("medium", new QuizQuestion(
+            "เดือนอะไรมี 30 วัน?",
+            new String[]{"ก. เมษายน", "ข. กันยายน", "ค. พฤศจิกายน", "ง. ทุกเดือน (ยกเว้น ก.พ.) มี 30 วัน"},
+            3,
+            "💡 เฉลย: ทุกเดือนที่มี 31 วัน ก็ย่อมมีวันที่ 30 อยู่ข้างในด้วยเสมอ!",
+            "medium"
+        ));
+        addQuestion("medium", new QuizQuestion(
+            "รถไฟไฟฟ้าแล่นจากทิศเหนือไปทิศใต้ ลมพัดจากทิศตะวันออกไปทิศตะวันตก ควันรถไฟจะพัดไปทางทิศใด?",
+            new String[]{"ก. ทิศตะวันตก", "ข. ทิศใต้", "ค. ทิศตะวันออกเฉียงเหนือ", "ง. ไม่มีควัน"},
+            3,
+            "💡 เฉลย: ไม่มีควัน! เพราะเป็น 'รถไฟไฟฟ้า' จึงไม่มีควันพวยพุ่งออกมา",
+            "medium"
+        ));
+        addQuestion("medium", new QuizQuestion(
+            "มีกระดาษ 1 แผ่น ฉีกครึ่งไปเรื่อยๆ ทั้งหมด 5 ครั้ง จะได้กระดาษกี่ชิ้น?",
+            new String[]{"ก. 10 ชิ้น", "ข. 16 ชิ้น", "ค. 25 ชิ้น", "ง. 32 ชิ้น"},
+            3,
+            "💡 เฉลย: 32 ชิ้น! คำนวณจาก 2^5 = 32 ชิ้น ตามหลักเลขยกกำลังสอง",
+            "medium"
+        ));
+
+        // 🔴 ระดับยาก (Hard)
+        addQuestion("hard", new QuizQuestion(
+            "ถ้า 1 = 5, 2 = 25, 3 = 125, 4 = 625 แล้ว 5 เท่ากับเท่าไร?",
+            new String[]{"ก. 3125", "ข. 1", "ค. 2500", "ง. 1000"},
+            1,
+            "💡 เฉลย: 1! เพราะเงื่อนไขบรรทัดแรกบอกไว้ชัดเจนแล้วว่า '1 = 5' ดังนั้น 5 ก็ต้องเท่ากับ 1",
+            "hard"
+        ));
+        addQuestion("hard", new QuizQuestion(
+            "ชายคนหนึ่งผลักรถยนต์ไปยังโรงแรม พอถึงโรงแรม เขารู้ทันทีว่าเขาล้มละลาย ถามว่าทำไม?",
+            new String[]{"ก. ค่าห้องพักโรงแรมแพงเกินไป", "ข. ตำรวจจับเพราะจอดรถขวาง", "ค. เขากำลังเล่นเกมเศรษฐี (Monopoly)", "ง. รถพังต้องเสียค่าซ่อมมหาศาล"},
+            2,
+            "💡 เฉลย: เขากำลังเล่นกระดาน 'เกมเศรษฐี' (Monopoly) แล้วตัวเดินรูปรถตกใส่โรงแรมคู่แข่ง!",
+            "hard"
+        ));
+        addQuestion("hard", new QuizQuestion(
+            "อะไรเอ่ย มีตาข้างเดียว แต่ไม่สามารถมองเห็นสิ่งใดได้เลย?",
+            new String[]{"ก. พายุไซโคลน", "ข. เข็มเย็บผ้า", "ค. มะพร้าว", "ง. กะลามะพร้าว"},
+            1,
+            "💡 เฉลย: เข็มเย็บผ้า! เพราะมี 'รูเข็ม/ตาเข็ม' เพียงรูเดียว แต่ไม่ใช่ดวงตาที่มองเห็นได้",
+            "hard"
+        ));
+    }
+
+    public void addQuestion(String difficulty, QuizQuestion question) {
+        String key = (difficulty != null) ? difficulty.toLowerCase() : "easy";
+        questionsByDifficulty.computeIfAbsent(key, k -> new ArrayList<>()).add(question);
     }
 
     public boolean isLoggedIn() {
@@ -91,15 +148,19 @@ public class QuizApp extends App {
     public String renderContent() {
         if (!isLoggedIn()) {
             return renderAuthPortal();
-        } else if (isGameOver) {
-            return renderResultScreen();
-        } else {
-            return renderQuizGame();
         }
+        return switch (screenState) {
+            case LOBBY -> renderLobbyScreen();
+            case GAME -> renderQuizGame();
+            case RESULT -> renderResultScreen();
+            case LEADERBOARD -> renderLeaderboardScreen();
+            case ADMIN_PANEL -> renderAdminPanelScreen();
+            default -> renderLobbyScreen();
+        };
     }
 
     /**
-     * เรนเดอร์หน้า Login & Register ตามสไตล์รูปภาพ CPE PORTAL
+     * เรนเดอร์หน้า Login & Register
      */
     private String renderAuthPortal() {
         String activeLoginClass = !isRegisterTab ? "active" : "";
@@ -131,7 +192,7 @@ public class QuizApp extends App {
                 <div class='portal-brand-banner'>
                     <div class='portal-emblem-icon'>🧠</div>
                     <div class='portal-brand-title'>IQ MASTER PORTAL</div>
-                    <div class='portal-brand-subtitle'>ระบบทดสอบเชาว์ปัญญาและไหวพริบ</div>
+                    <div class='portal-brand-subtitle'>ระบบทดสอบเชาว์ปัญญา 3 ระดับ & แผง Admin</div>
                 </div>
 
                 <div class='modern-pill-tabs'>
@@ -148,7 +209,7 @@ public class QuizApp extends App {
                 <div class='modern-form-group'>
                     <label class='modern-form-label'><span>🆔</span> รหัสนักศึกษา (10 หลัก)</label>
                     <div class='modern-input-box'>
-                        <input type='text' id='studentIdInput' class='modern-form-input' placeholder='ตัวอย่าง: 6812345678' maxlength='10'>
+                        <input type='text' id='studentIdInput' class='modern-form-input' placeholder='ตัวอย่าง: 6812247008' maxlength='10'>
                     </div>
                 </div>
 
@@ -167,8 +228,13 @@ public class QuizApp extends App {
                     %s
                 </div>
 
-                <div class='portal-demo-pill'>
-                    <span>💡 บัญชีทดสอบด่วน: <strong>6812345678</strong> | รหัส: <strong>12345678</strong></span>
+                <div style='display:flex; flex-direction:column; gap:6px; margin-top:14px;'>
+                    <div class='portal-demo-pill' onclick="document.getElementById('studentIdInput').value='6812247008'; document.getElementById('passwordInput').value='12345678';" style="cursor:pointer;" title="คลิกเพื่อเข้าสู่ระบบเป็น Admin">
+                        <span>👑 บัญชี Admin: <strong>6812247008</strong> | รหัส: <strong>12345678</strong></span>
+                    </div>
+                    <div class='portal-demo-pill' onclick="document.getElementById('studentIdInput').value='6812345678'; document.getElementById('passwordInput').value='12345678';" style="cursor:pointer;" title="คลิกเพื่อเข้าสู่ระบบเป็นผู้เล่น">
+                        <span>🎮 บัญชีผู้เล่น: <strong>6812345678</strong> | รหัส: <strong>12345678</strong></span>
+                    </div>
                 </div>
             </div>
 
@@ -191,10 +257,120 @@ public class QuizApp extends App {
     }
 
     /**
-     * เรนเดอร์หน้าจอทำโจทย์เกมตอบปัญหาเชาว์ปัญญา
+     * เรนเดอร์หน้าจอ Lobby (เลือกระดับความยาก & เมนูหลัก)
+     */
+    private String renderLobbyScreen() {
+        int easyCount = questionsByDifficulty.getOrDefault("easy", Collections.emptyList()).size();
+        int medCount = questionsByDifficulty.getOrDefault("medium", Collections.emptyList()).size();
+        int hardCount = questionsByDifficulty.getOrDefault("hard", Collections.emptyList()).size();
+
+        String roleBadge = currentUser.isAdmin() 
+            ? "<span class='badge-tag' style='background:linear-gradient(135deg, #f59e0b, #ef4444); color:#fff;'>👑 ADMIN</span>" 
+            : "<span class='badge-tag'>🎮 PLAYER</span>";
+
+        String adminBtnHtml = currentUser.isAdmin() ? """
+            <button class='btn-portal-action' style='background:linear-gradient(135deg, #f59e0b, #d97706); margin-bottom:10px;' onclick='triggerEvent("quiz_view_admin", "")'>
+                ⚙️ แผงควบคุม Admin (เพิ่ม/จัดการข้อสอบ)
+            </button>
+        """ : "";
+
+        return """
+            <div class='custom-portal-card' style='padding: 16px 14px;'>
+                <div class='quiz-status-header' style='margin-bottom:12px;'>
+                    <div style='display:flex; align-items:center; gap:8px;'>
+                        <span style='font-size:13px; font-weight:700; color:#fff0f7;'>👨‍💻 %s</span>
+                        %s
+                    </div>
+                    <button class='btn-quiz-logout' onclick='triggerEvent("quiz_logout", "")' title='ออกจากระบบ'>🚪 ออก</button>
+                </div>
+
+                <div style='background:rgba(255,42,133,0.1); border:1px solid rgba(255,42,133,0.3); border-radius:12px; padding:10px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;'>
+                    <div>
+                        <div style='font-size:11px; color:#ff75b5; text-transform:uppercase; letter-spacing:0.5px;'>สถิติคะแนนสะสม</div>
+                        <div style='font-size:18px; font-weight:800; color:#fff;'>⭐ %d <span style='font-size:12px; color:#f472b6;'>คะแนน</span></div>
+                    </div>
+                    <div style='text-align:right;'>
+                        <div style='font-size:11px; color:#94a3b8;'>คะแนนสูงสุด</div>
+                        <div style='font-size:14px; font-weight:700; color:#38bdf8;'>🏆 %d แต้ม</div>
+                    </div>
+                </div>
+
+                <div style='font-size:14px; font-weight:700; color:#ff75b5; margin-bottom:10px; display:flex; align-items:center; gap:6px;'>
+                    <span>🎯</span> เลือกระดับความยาก (ตอบถูกได้ +1 คะแนน/ข้อ)
+                </div>
+
+                <div style='display:flex; flex-direction:column; gap:10px; margin-bottom:14px;'>
+                    <!-- ระดับง่าย -->
+                    <div onclick='triggerEvent("quiz_select_difficulty", "easy")' style='cursor:pointer; background:linear-gradient(135deg, #181024, #12091c); border:1px solid rgba(34, 197, 94, 0.4); border-radius:12px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; transition:all 0.2s;'>
+                        <div style='display:flex; align-items:center; gap:10px;'>
+                            <div style='font-size:24px; background:#14532d; width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center;'>🟢</div>
+                            <div>
+                                <div style='font-size:14px; font-weight:700; color:#4ade80;'>ระดับง่าย (Easy)</div>
+                                <div style='font-size:11px; color:#94a3b8;'>โจทย์เชาว์ปัญหากวนๆ เล่นเพลิน</div>
+                            </div>
+                        </div>
+                        <span class='badge-tag' style='background:#15803d;'>%d ข้อ</span>
+                    </div>
+
+                    <!-- ระดับกลาง -->
+                    <div onclick='triggerEvent("quiz_select_difficulty", "medium")' style='cursor:pointer; background:linear-gradient(135deg, #181024, #12091c); border:1px solid rgba(234, 179, 8, 0.4); border-radius:12px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; transition:all 0.2s;'>
+                        <div style='display:flex; align-items:center; gap:10px;'>
+                            <div style='font-size:24px; background:#713f12; width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center;'>🟡</div>
+                            <div>
+                                <div style='font-size:14px; font-weight:700; color:#facc15;'>ระดับกลาง (Medium)</div>
+                                <div style='font-size:11px; color:#94a3b8;'>โจทย์ตรรกะและไหวพริบสายวิเคราะห์</div>
+                            </div>
+                        </div>
+                        <span class='badge-tag' style='background:#a16207;'>%d ข้อ</span>
+                    </div>
+
+                    <!-- ระดับยาก -->
+                    <div onclick='triggerEvent("quiz_select_difficulty", "hard")' style='cursor:pointer; background:linear-gradient(135deg, #181024, #12091c); border:1px solid rgba(239, 68, 68, 0.4); border-radius:12px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; transition:all 0.2s;'>
+                        <div style='display:flex; align-items:center; gap:10px;'>
+                            <div style='font-size:24px; background:#7f1d1d; width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center;'>🔴</div>
+                            <div>
+                                <div style='font-size:14px; font-weight:700; color:#f87171;'>ระดับยาก (Hard)</div>
+                                <div style='font-size:11px; color:#94a3b8;'>โจทย์เชาว์ขั้นสูง ปริศนาสับขาหลอก</div>
+                            </div>
+                        </div>
+                        <span class='badge-tag' style='background:#b91c1c;'>%d ข้อ</span>
+                    </div>
+                </div>
+
+                %s
+
+                <button class='btn-portal-action' style='background:linear-gradient(135deg, #a21caf, #ff2a85); margin-bottom:10px;' onclick='triggerEvent("quiz_view_leaderboard", "")'>
+                    🏆 ดูตารางแรงค์ (Leaderboard)
+                </button>
+            </div>
+        """.formatted(
+            currentUser.getStudentId(),
+            roleBadge,
+            currentUser.getTotalScore(),
+            currentUser.getHighestScore(),
+            easyCount,
+            medCount,
+            hardCount,
+            adminBtnHtml
+        );
+    }
+
+    /**
+     * เรนเดอร์หน้าจอทำข้อสอบ
      */
     private String renderQuizGame() {
-        QuizQuestion q = questions.get(currentQuestionIndex);
+        if (activeQuestions.isEmpty()) {
+            return """
+                <div class='custom-portal-card' style='text-align:center; padding:30px 16px;'>
+                    <div style='font-size:40px; margin-bottom:10px;'>📭</div>
+                    <h3 style='color:#ff75b5; margin-bottom:10px;'>ยังไม่มีข้อสอบในระดับนี้</h3>
+                    <p style='color:#94a3b8; font-size:12px; margin-bottom:18px;'>ให้ Admin เข้าไปเพิ่มข้อสอบที่แผงควบคุม</p>
+                    <button class='btn-portal-action' onclick='triggerEvent("quiz_view_lobby", "")'>🏠 กลับหน้าหลัก</button>
+                </div>
+            """;
+        }
+
+        QuizQuestion q = activeQuestions.get(currentQuestionIndex);
         StringBuilder choicesHtml = new StringBuilder();
 
         for (int i = 0; i < q.getChoices().length; i++) {
@@ -216,7 +392,7 @@ public class QuizApp extends App {
         String explanationHtml = "";
         if (isAnswered) {
             String feedbackColor = (lastSelectedChoice == q.getCorrectIndex()) ? "#ff2a85" : "#f43f5e";
-            String feedbackTitle = (lastSelectedChoice == q.getCorrectIndex()) ? "🎉 ยอดเยี่ยม! ตอบถูกต้อง" : "❌ ผิดซะแล้ว!";
+            String feedbackTitle = (lastSelectedChoice == q.getCorrectIndex()) ? "🎉 ยอดเยี่ยม! ตอบถูกต้อง (+1 คะแนน)" : "❌ ตอบผิดซะแล้ว!";
             
             explanationHtml = String.format("""
                 <div class='quiz-explanation-box' style='border-left: 3px solid %s;'>
@@ -232,12 +408,19 @@ public class QuizApp extends App {
             """;
         }
 
+        String diffBadge = switch (currentDifficulty) {
+            case "easy" -> "<span class='badge-tag' style='background:#166534; color:#4ade80;'>🟢 ระดับง่าย</span>";
+            case "medium" -> "<span class='badge-tag' style='background:#854d0e; color:#facc15;'>🟡 ระดับกลาง</span>";
+            case "hard" -> "<span class='badge-tag' style='background:#991b1b; color:#f87171;'>🔴 ระดับยาก</span>";
+            default -> "<span class='badge-tag'>🧩 คำถาม</span>";
+        };
+
         return """
             <div class='quiz-game-container'>
                 <div class='quiz-status-header'>
-                    <div class='user-tag'>👨‍💻 %s</div>
+                    <div class='user-tag'>👨‍💻 %s %s</div>
                     <div class='quiz-score-badge'>คะแนน: %d / %d</div>
-                    <button class='btn-quiz-logout' onclick='triggerEvent("quiz_logout", "")' title='ออกจากระบบ'>🚪 ออก</button>
+                    <button class='btn-quiz-logout' onclick='triggerEvent("quiz_view_lobby", "")' title='กลับหน้าหลัก'>🏠</button>
                 </div>
 
                 <div class='quiz-progress-bar-wrap'>
@@ -258,9 +441,11 @@ public class QuizApp extends App {
                 %s
             </div>
         """.formatted(
-            currentUser.getStudentId(), score, questions.size(),
-            (int)(((currentQuestionIndex + 1) / (double)questions.size()) * 100),
-            (currentQuestionIndex + 1), questions.size(),
+            currentUser.getStudentId(),
+            diffBadge,
+            score, activeQuestions.size(),
+            (int)(((currentQuestionIndex + 1) / (double)activeQuestions.size()) * 100),
+            (currentQuestionIndex + 1), activeQuestions.size(),
             q.getQuestion(),
             choicesHtml.toString(),
             explanationHtml,
@@ -269,29 +454,34 @@ public class QuizApp extends App {
     }
 
     /**
-     * เรนเดอร์หน้าจอสรุปคะแนนเมื่อเล่นจบ
+     * เรนเดอร์หน้าจอสรุปผลคะแนน
      */
     private String renderResultScreen() {
         String grade = "🥇 อัจฉริยะเชาว์ปัญญาระดับ CPE เทพ";
-        if (score <= 2) grade = "🥉 ต้องฝึกคิดนอกกรอบอีกนิดนะ!";
-        else if (score <= 4) grade = "🥈 มีไหวพริบยอดเยี่ยม!";
+        if (score <= 1) grade = "🥉 ต้องฝึกคิดนอกกรอบอีกนิดนะ!";
+        else if (score <= 2) grade = "🥈 มีไหวพริบยอดเยี่ยม!";
 
         return """
             <div class='quiz-result-container'>
-                <div style='font-size: 50px; margin-bottom: 12px;'>🏆</div>
+                <div style='font-size: 46px; margin-bottom: 8px;'>🏆</div>
                 <h2>ผลการทดสอบเชาว์ปัญญา</h2>
                 <div class='result-student-id'>รหัสนักศึกษา: %s</div>
                 
                 <div class='result-score-circle'>
                     <div class='result-score-number'>%d</div>
-                    <div class='result-score-total'>เต็ม %d คะแนน</div>
+                    <div class='result-score-total'>เต็ม %d คะแนน (+%d แต้ม)</div>
                 </div>
 
                 <div class='result-grade-badge'>%s</div>
 
-                <div class='result-actions'>
-                    <button class='btn-restart-quiz' onclick='triggerEvent("quiz_restart", "")'>🔄 เล่นอีกครั้ง</button>
-                    <button class='btn-result-logout' onclick='triggerEvent("quiz_logout", "")'>🚪 ออกจากระบบ</button>
+                <div style='margin-bottom: 14px; font-size:12px; color:#ff75b5;'>
+                    คะแนนสะสมรวมทั้งหมด: <strong>%d</strong> คะแนน
+                </div>
+
+                <div class='result-actions' style='display:flex; flex-direction:column; gap:8px;'>
+                    <button class='btn-restart-quiz' onclick='triggerEvent("quiz_restart", "")'>🔄 เล่นระดับนี้อีกครั้ง</button>
+                    <button class='btn-portal-action' style='background:linear-gradient(135deg, #9333ea, #c026d3);' onclick='triggerEvent("quiz_view_leaderboard", "")'>🏆 ดูตารางแรงค์ (Leaderboard)</button>
+                    <button class='btn-result-logout' style='background:#1e0d29; border:1px solid #4a154b;' onclick='triggerEvent("quiz_view_lobby", "")'>🏠 กลับหน้าหลัก (Lobby)</button>
                 </div>
                 <script>
                     if (window.saveQuizScoreToFirestore) {
@@ -299,7 +489,213 @@ public class QuizApp extends App {
                     }
                 </script>
             </div>
-        """.formatted(currentUser.getStudentId(), score, questions.size(), grade, currentUser.getStudentId(), score, questions.size());
+        """.formatted(
+            currentUser.getStudentId(), 
+            score, 
+            activeQuestions.size(), 
+            score,
+            grade,
+            currentUser.getTotalScore(),
+            currentUser.getStudentId(), 
+            score, 
+            activeQuestions.size()
+        );
+    }
+
+    /**
+     * เรนเดอร์หน้าจอตารางแรงค์ (Leaderboard)
+     */
+    private String renderLeaderboardScreen() {
+        // ดึงผู้เล่นทั้งหมดมาจัดอันดับตามคะแนนสะสม / คะแนนสูงสุด
+        List<User> sortedUsers = new ArrayList<>(userDatabase.values());
+        sortedUsers.sort((a, b) -> Integer.compare(b.getTotalScore(), a.getTotalScore()));
+
+        StringBuilder rowsHtml = new StringBuilder();
+        int rank = 1;
+        for (User u : sortedUsers) {
+            String medal = switch (rank) {
+                case 1 -> "🥇 1";
+                case 2 -> "🥈 2";
+                case 3 -> "🥉 3";
+                default -> " " + rank;
+            };
+            boolean isMe = currentUser != null && currentUser.getStudentId().equals(u.getStudentId());
+            String rowBg = isMe ? "background:rgba(255,42,133,0.18); border-left:3px solid #ff2a85;" : "background:rgba(255,255,255,0.03);";
+            String roleTag = u.isAdmin() ? "<span style='color:#f59e0b; font-size:10px;'>👑</span>" : "";
+
+            rowsHtml.append(String.format("""
+                <tr style='%s padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05);'>
+                    <td style='padding:8px; font-weight:800; color:%s;'>%s</td>
+                    <td style='padding:8px; font-weight:600; color:#fdf2f8;'>%s %s</td>
+                    <td style='padding:8px; text-align:center; font-weight:800; color:#ff75b5;'>%d</td>
+                    <td style='padding:8px; text-align:center; color:#94a3b8; font-size:11px;'>%d รอบ</td>
+                </tr>
+            """, rowBg, (rank == 1 ? "#fbbf24" : (rank == 2 ? "#e2e8f0" : (rank == 3 ? "#f97316" : "#94a3b8"))),
+            medal, u.getStudentId(), roleTag, u.getTotalScore(), u.getQuizzesPlayed()));
+            rank++;
+        }
+
+        return """
+            <div class='custom-portal-card' style='padding: 16px 14px;'>
+                <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;'>
+                    <div style='display:flex; align-items:center; gap:8px;'>
+                        <span style='font-size:24px;'>🏆</span>
+                        <div>
+                            <h3 style='font-size:16px; color:#ff75b5; margin:0;'>ตารางจัดอันดับ (Leaderboard)</h3>
+                            <div style='font-size:11px; color:#94a3b8;'>อันดับผู้เล่นคะแนนสูงสุดในระบบ</div>
+                        </div>
+                    </div>
+                    <button class='btn-quiz-logout' onclick='triggerEvent("quiz_view_lobby", "")'>🏠</button>
+                </div>
+
+                <div style='overflow-x:auto; margin-bottom:14px; border-radius:8px; border:1px solid rgba(255,42,133,0.2);'>
+                    <table style='width:100%; border-collapse:collapse; font-size:12px; text-align:left;'>
+                        <thead>
+                            <tr style='background:rgba(255,42,133,0.15); color:#ff75b5;'>
+                                <th style='padding:8px;'>อันดับ</th>
+                                <th style='padding:8px;'>รหัสนักศึกษา</th>
+                                <th style='padding:8px; text-align:center;'>คะแนนรวม</th>
+                                <th style='padding:8px; text-align:center;'>เล่นแล้ว</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            %s
+                        </tbody>
+                    </table>
+                </div>
+
+                <button class='btn-portal-action' onclick='triggerEvent("quiz_view_lobby", "")'>
+                    🏠 กลับสู่หน้าเลือกโหมด (Lobby)
+                </button>
+            </div>
+        """.formatted(rowsHtml.toString());
+    }
+
+    /**
+     * เรนเดอร์หน้าจอ Admin Panel (เพิ่มข้อสอบ 3 ระดับ)
+     */
+    private String renderAdminPanelScreen() {
+        if (!currentUser.isAdmin()) {
+            return """
+                <div class='custom-portal-card' style='text-align:center; padding:30px 16px;'>
+                    <div style='font-size:40px; margin-bottom:10px;'>⛔</div>
+                    <h3 style='color:#f43f5e;'>ไม่มีสิทธิ์เข้าถึง</h3>
+                    <p style='color:#94a3b8; font-size:12px; margin-bottom:18px;'>เฉพาะรหัส 6812247008 เท่านั้นที่สามารถใช้งานแผงนี้ได้</p>
+                    <button class='btn-portal-action' onclick='triggerEvent("quiz_view_lobby", "")'>🏠 กลับหน้าหลัก</button>
+                </div>
+            """;
+        }
+
+        String alertHtml = "";
+        if (!adminMessage.isEmpty()) {
+            alertHtml = "<div class='portal-alert-box' style='color:#4ade80; border-color:#22c55e66; margin-bottom:10px;'>✅ " + adminMessage + "</div>";
+        }
+
+        return """
+            <div class='custom-portal-card' style='padding: 16px 14px;'>
+                <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;'>
+                    <div style='display:flex; align-items:center; gap:8px;'>
+                        <span style='font-size:24px;'>⚙️</span>
+                        <div>
+                            <h3 style='font-size:15px; color:#f59e0b; margin:0;'>แผงควบคุมผู้ดูแลระบบ (Admin)</h3>
+                            <div style='font-size:11px; color:#94a3b8;'>เพิ่มข้อสอบ 3 ระดับ (รหัส: %s)</div>
+                        </div>
+                    </div>
+                    <button class='btn-quiz-logout' onclick='triggerEvent("quiz_view_lobby", "")'>🏠</button>
+                </div>
+
+                %s
+
+                <div class='modern-form-group' style='margin-bottom:8px;'>
+                    <label class='modern-form-label'><span>🎯</span> ระดับความยากของคำถาม</label>
+                    <select id='adminDiffInput' class='modern-form-input' style='background:#16091c; color:#fff;'>
+                        <option value='easy'>🟢 ระดับง่าย (Easy)</option>
+                        <option value='medium'>🟡 ระดับกลาง (Medium)</option>
+                        <option value='hard'>🔴 ระดับยาก (Hard)</option>
+                    </select>
+                </div>
+
+                <div class='modern-form-group' style='margin-bottom:8px;'>
+                    <label class='modern-form-label'><span>❓</span> คำถามเชาว์ปัญญา</label>
+                    <input type='text' id='adminQuestionInput' class='modern-form-input' placeholder='กรอกโจทย์คำถาม...'>
+                </div>
+
+                <div style='display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px;'>
+                    <div>
+                        <label class='modern-form-label'>ตัวเลือก ก.</label>
+                        <input type='text' id='adminC0Input' class='modern-form-input' placeholder='ตัวเลือก 1'>
+                    </div>
+                    <div>
+                        <label class='modern-form-label'>ตัวเลือก ข.</label>
+                        <input type='text' id='adminC1Input' class='modern-form-input' placeholder='ตัวเลือก 2'>
+                    </div>
+                    <div>
+                        <label class='modern-form-label'>ตัวเลือก ค.</label>
+                        <input type='text' id='adminC2Input' class='modern-form-input' placeholder='ตัวเลือก 3'>
+                    </div>
+                    <div>
+                        <label class='modern-form-label'>ตัวเลือก ง.</label>
+                        <input type='text' id='adminC3Input' class='modern-form-input' placeholder='ตัวเลือก 4'>
+                    </div>
+                </div>
+
+                <div class='modern-form-group' style='margin-bottom:8px;'>
+                    <label class='modern-form-label'><span>✅</span> ตัวเลือกที่ถูกต้อง</label>
+                    <select id='adminCorrectInput' class='modern-form-input' style='background:#16091c; color:#fff;'>
+                        <option value='0'>ตัวเลือก ก.</option>
+                        <option value='1'>ตัวเลือก ข.</option>
+                        <option value='2'>ตัวเลือก ค.</option>
+                        <option value='3'>ตัวเลือก ง.</option>
+                    </select>
+                </div>
+
+                <div class='modern-form-group' style='margin-bottom:12px;'>
+                    <label class='modern-form-label'><span>💡</span> คำเฉลย / คำอธิบาย</label>
+                    <input type='text' id='adminExpInput' class='modern-form-input' placeholder='กรอกคำอธิบายเฉลย...'>
+                </div>
+
+                <button class='btn-portal-action' style='background:linear-gradient(135deg, #f59e0b, #d97706); margin-bottom:8px;' onclick='submitAdminQuestion()'>
+                    💾 บันทึกข้อสอบเข้าสู่ระบบ
+                </button>
+
+                <button class='btn-portal-action' style='background:#1e0d29; border:1px solid #4a154b;' onclick='triggerEvent("quiz_view_lobby", "")'>
+                    🏠 กลับสู่หน้าเลือกโหมด (Lobby)
+                </button>
+            </div>
+
+            <script>
+                function submitAdminQuestion() {
+                    const diff = document.getElementById('adminDiffInput')?.value || 'easy';
+                    const q = (document.getElementById('adminQuestionInput')?.value || '').trim();
+                    const c0 = (document.getElementById('adminC0Input')?.value || '').trim();
+                    const c1 = (document.getElementById('adminC1Input')?.value || '').trim();
+                    const c2 = (document.getElementById('adminC2Input')?.value || '').trim();
+                    const c3 = (document.getElementById('adminC3Input')?.value || '').trim();
+                    const correct = document.getElementById('adminCorrectInput')?.value || '0';
+                    const exp = (document.getElementById('adminExpInput')?.value || '').trim();
+
+                    if (!q || !c0 || !c1) {
+                        alert('กรุณากรอกคำถามและตัวเลือกอย่างน้อย 2 ข้อ');
+                        return;
+                    }
+
+                    // บันทึกลง Cloud Firestore ถ้ามี SDK
+                    if (window.saveCustomQuestionToFirestore) {
+                        window.saveCustomQuestionToFirestore({
+                            difficulty: diff,
+                            question: q,
+                            choices: [c0, c1, c2, c3],
+                            correctIndex: parseInt(correct),
+                            explanation: exp,
+                            createdBy: '6812247008'
+                        });
+                    }
+
+                    const param = diff + '||' + q + '||' + c0 + '||' + c1 + '||' + c2 + '||' + c3 + '||' + correct + '||' + exp;
+                    triggerEvent('quiz_add_question', param);
+                }
+            </script>
+        """.formatted(currentUser.getStudentId(), alertHtml);
     }
 
     @Override
@@ -318,15 +714,13 @@ public class QuizApp extends App {
             this.isAuthSuccess = false;
             return false;
         }
-        User user = userDatabase.get(studentId.trim());
+        String sId = studentId.trim();
+        User user = userDatabase.get(sId);
         if (user != null && user.checkPassword(password)) {
             this.currentUser = user;
             this.authMessage = "";
             this.isAuthSuccess = true;
-            this.score = 0;
-            this.currentQuestionIndex = 0;
-            this.isGameOver = false;
-            this.isAnswered = false;
+            this.screenState = ScreenState.LOBBY;
             return true;
         } else {
             this.authMessage = "รหัสนักศึกษาหรือรหัสผ่านไม่ถูกต้อง";
@@ -351,31 +745,84 @@ public class QuizApp extends App {
             this.isAuthSuccess = false;
             return false;
         }
-        if (userDatabase.containsKey(studentId.trim())) {
+        String sId = studentId.trim();
+        if (userDatabase.containsKey(sId)) {
             this.authMessage = "รหัสนักศึกษานี้ได้ลงทะเบียนไว้แล้ว";
             this.isAuthSuccess = false;
             return false;
         }
 
-        User newUser = new User(studentId.trim(), password);
-        userDatabase.put(studentId.trim(), newUser);
+        User newUser = new User(sId, password);
+        userDatabase.put(sId, newUser);
         this.currentUser = newUser;
         this.authMessage = "สมัครสมาชิกสำเร็จ!";
         this.isAuthSuccess = true;
-        this.score = 0;
-        this.currentQuestionIndex = 0;
-        this.isGameOver = false;
-        this.isAnswered = false;
+        this.screenState = ScreenState.LOBBY;
         return true;
     }
 
+    public void selectDifficulty(String difficulty) {
+        this.currentDifficulty = (difficulty != null) ? difficulty.toLowerCase() : "easy";
+        this.activeQuestions = new ArrayList<>(questionsByDifficulty.getOrDefault(this.currentDifficulty, Collections.emptyList()));
+        this.currentQuestionIndex = 0;
+        this.score = 0;
+        this.isAnswered = false;
+        this.lastSelectedChoice = -1;
+        this.screenState = ScreenState.GAME;
+    }
+
+    public void openLobby() {
+        this.screenState = ScreenState.LOBBY;
+        this.adminMessage = "";
+    }
+
+    public void openLeaderboard() {
+        this.screenState = ScreenState.LEADERBOARD;
+    }
+
+    public void openAdminPanel() {
+        if (currentUser != null && currentUser.isAdmin()) {
+            this.screenState = ScreenState.ADMIN_PANEL;
+            this.adminMessage = "";
+        }
+    }
+
+    public void adminAddQuestion(String rawParam) {
+        if (currentUser == null || !currentUser.isAdmin()) return;
+        try {
+            String[] parts = rawParam.split("\\|\\|", -1);
+            if (parts.length >= 7) {
+                String diff = parts[0];
+                String q = parts[1];
+                String c0 = parts[2];
+                String c1 = parts[3];
+                String c2 = parts[4];
+                String c3 = parts[5];
+                int correct = Integer.parseInt(parts[6]);
+                String exp = parts.length > 7 ? parts[7] : "";
+
+                QuizQuestion newQ = new QuizQuestion(
+                    q,
+                    new String[]{c0, c1, c2, c3},
+                    correct,
+                    exp,
+                    diff
+                );
+                addQuestion(diff, newQ);
+                this.adminMessage = "เพิ่มข้อสอบระดับ " + diff.toUpperCase() + " สำเร็จแล้ว!";
+            }
+        } catch (Exception e) {
+            this.adminMessage = "เกิดข้อผิดพลาดในการเพิ่มข้อสอบ: " + e.getMessage();
+        }
+    }
+
     public void answerQuestion(int choiceIndex) {
-        if (isAnswered || isGameOver) return;
+        if (isAnswered || activeQuestions.isEmpty()) return;
         this.isAnswered = true;
         this.lastSelectedChoice = choiceIndex;
-        QuizQuestion q = questions.get(currentQuestionIndex);
+        QuizQuestion q = activeQuestions.get(currentQuestionIndex);
         if (q.isCorrect(choiceIndex)) {
-            this.score++;
+            this.score++; // ตอบถูกได้ 1 คะแนน
         }
     }
 
@@ -383,28 +830,27 @@ public class QuizApp extends App {
         if (!isAnswered) return;
         this.isAnswered = false;
         this.lastSelectedChoice = -1;
-        if (currentQuestionIndex + 1 < questions.size()) {
-            this.currentQuestionIndex++;
+        if (currentQuestionIndex + 1 < activeQuestions.size()) {
+            currentQuestionIndex++;
         } else {
-            this.isGameOver = true;
+            // จบเกมรอบนี้ -> บันทึกคะแนนสะสม
             if (currentUser != null) {
-                currentUser.updateScore(score);
+                currentUser.addScore(score);
             }
+            this.screenState = ScreenState.RESULT;
         }
     }
 
     public void restartQuiz() {
-        this.currentQuestionIndex = 0;
-        this.score = 0;
-        this.isAnswered = false;
-        this.lastSelectedChoice = -1;
-        this.isGameOver = false;
+        selectDifficulty(this.currentDifficulty);
     }
 
     public void logout() {
         this.currentUser = null;
         this.authMessage = "";
         this.isRegisterTab = false;
-        restartQuiz();
+        this.screenState = ScreenState.AUTH;
+        this.score = 0;
+        this.currentQuestionIndex = 0;
     }
 }

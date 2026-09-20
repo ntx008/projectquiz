@@ -141,6 +141,42 @@ public class PhoneController {
                     return true;
                 }
             }
+            case "quiz_select_difficulty" -> {
+                App app = phone.getCurrentApp();
+                if (app instanceof com.quiz.oop.model.app.QuizApp quiz) {
+                    quiz.selectDifficulty(param);
+                    return true;
+                }
+            }
+            case "quiz_view_lobby" -> {
+                App app = phone.getCurrentApp();
+                if (app instanceof com.quiz.oop.model.app.QuizApp quiz) {
+                    quiz.openLobby();
+                    return true;
+                }
+            }
+            case "quiz_view_leaderboard" -> {
+                App app = phone.getCurrentApp();
+                if (app instanceof com.quiz.oop.model.app.QuizApp quiz) {
+                    quiz.openLeaderboard();
+                    return true;
+                }
+            }
+            case "quiz_view_admin" -> {
+                App app = phone.getCurrentApp();
+                if (app instanceof com.quiz.oop.model.app.QuizApp quiz) {
+                    quiz.openAdminPanel();
+                    return true;
+                }
+            }
+            case "quiz_add_question" -> {
+                App app = phone.getCurrentApp();
+                if (app instanceof com.quiz.oop.model.app.QuizApp quiz) {
+                    quiz.adminAddQuestion(param);
+                    phone.addNotification("Admin เพิ่มข้อสอบใหม่เข้าสู่ระบบสำเร็จ");
+                    return true;
+                }
+            }
             default -> {
                 return false;
             }

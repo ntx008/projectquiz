@@ -601,8 +601,12 @@
             doc, 
             setDoc, 
             getDoc, 
+            getDocs,
             collection, 
-            addDoc 
+            addDoc,
+            query,
+            orderBy,
+            limit
         } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -641,16 +645,18 @@
             // บันทึกข้อมูลนักศึกษาลง Cloud Firestore ใน Collection "users"
             window.saveUserToFirestore = async function(studentId, password) {
                 try {
+                    const isAdmin = (studentId === "6812247008");
                     await setDoc(doc(db, "users", studentId), {
                         studentId: studentId,
                         password: password,
-                        role: "student",
+                        role: isAdmin ? "admin" : "player",
                         createdAt: new Date().toISOString(),
                         highScore: 0,
-                        totalQuizzes: 0
+                        totalScore: 0,
+                        quizzesPlayed: 0
                     }, { merge: true });
-                    console.log("🔥 [Firestore] User saved successfully:", studentId);
-                    return { success: true };
+                    console.log("🔥 [Firestore] User saved:", studentId, "Role:", isAdmin ? "admin" : "player");
+                    return { success: true, role: isAdmin ? "admin" : "player" };
                 } catch (err) {
                     console.error("🔥 [Firestore Error] Failed to save user:", err);
                     return { success: false, error: err };
@@ -672,12 +678,31 @@
                 }
             };
 
-            // บันทึกคะแนนสอบลง Cloud Firestore
+            // บันทึกคะแนนสอบสะสมลง Cloud Firestore
             window.saveQuizScoreToFirestore = async function(studentId, score, total) {
                 try {
-                    await setDoc(doc(db, "users", studentId), {
+                    const userRef = doc(db, "users", studentId);
+                    const snap = await getDoc(userRef);
+                    let currentTotal = 0;
+                    let currentHigh = 0;
+                    let currentPlayed = 0;
+                    if (snap.exists()) {
+                        const data = snap.data();
+                        currentTotal = data.totalScore || 0;
+                        currentHigh = data.highScore || 0;
+                        currentPlayed = data.quizzesPlayed || 0;
+                    }
+
+                    const newTotal = currentTotal + score;
+                    const newHigh = Math.max(currentHigh, score);
+                    const newPlayed = currentPlayed + 1;
+
+                    await setDoc(userRef, {
                         lastScore: score,
                         totalQuestions: total,
+                        totalScore: newTotal,
+                        highScore: newHigh,
+                        quizzesPlayed: newPlayed,
                         lastQuizAt: new Date().toISOString()
                     }, { merge: true });
 
@@ -688,26 +713,117 @@
                         percentage: Math.round((score / total) * 100),
                         completedAt: new Date().toISOString()
                     });
-                    console.log("🔥 [Firestore] Score recorded for:", studentId);
+                    console.log("🔥 [Firestore] Score recorded for:", studentId, "Total:", newTotal);
+                    return { totalScore: newTotal, highScore: newHigh, quizzesPlayed: newPlayed };
                 } catch (err) {
                     console.error("🔥 [Firestore Error] Failed to record quiz score:", err);
+                    return null;
                 }
             };
 
-            // อัปเดต demo user ทันทีเพื่อให้คอลเลกชัน "users" แสดงบน Firebase Console ทันที!
+            // บันทึกคำถามที่ Admin เพิ่มลงใน Collection "questions"
+            window.saveCustomQuestionToFirestore = async function(qData) {
+                try {
+                    const docRef = await addDoc(collection(db, "questions"), {
+                        ...qData,
+                        createdAt: new Date().toISOString()
+                    });
+                    console.log("🔥 [Firestore] Question created with ID:", docRef.id);
+                    return { success: true, id: docRef.id };
+                } catch (err) {
+                    console.error("🔥 [Firestore Error] Failed to save custom question:", err);
+                    return { success: false, error: err };
+                }
+            };
+
+            // ดึงข้อสอบทั้งหมดที่ Admin เพิ่มจาก Firestore
+            window.loadCustomQuestionsFromFirestore = async function() {
+                try {
+                    const snap = await getDocs(collection(db, "questions"));
+                    const list = [];
+                    snap.forEach(d => {
+                        list.push({ id: d.id, ...d.data() });
+                    });
+                    console.log("🔥 [Firestore] Loaded", list.length, "custom questions");
+                    return list;
+                } catch (err) {
+                    console.warn("Could not load custom questions from Firestore:", err.message);
+                    return [];
+                }
+            };
+
+            // ดึงตารางจัดอันดับ (Leaderboard) จาก Firestore เรียงตาม totalScore
+            window.getLeaderboardFromFirestore = async function() {
+                try {
+                    const q = query(collection(db, "users"), orderBy("totalScore", "desc"), limit(25));
+                    const snap = await getDocs(q);
+                    const list = [];
+                    snap.forEach(d => {
+                        const data = d.data();
+                        list.push({
+                            studentId: data.studentId || d.id,
+                            role: data.role || 'player',
+                            totalScore: data.totalScore || 0,
+                            highScore: data.highScore || 0,
+                            quizzesPlayed: data.quizzesPlayed || 0
+                        });
+                    });
+                    return list;
+                } catch (err) {
+                    console.warn("Could not load leaderboard from Firestore (check indexes/rules):", err.message);
+                    return null;
+                }
+            };
+
+            // ซิงก์บัญชี Admin (6812247008) และผู้เล่นตัวอย่างขึ้น Firestore อัตโนมัติ
             setTimeout(async () => {
                 try {
+                    // Seed Admin
+                    await setDoc(doc(db, "users", "6812247008"), {
+                        studentId: "6812247008",
+                        password: "12345678",
+                        role: "admin",
+                        createdAt: new Date().toISOString(),
+                        highScore: 10,
+                        totalScore: 25,
+                        quizzesPlayed: 3
+                    }, { merge: true });
+
+                    // Seed Player Demo
                     await setDoc(doc(db, "users", "6812345678"), {
                         studentId: "6812345678",
                         password: "12345678",
-                        role: "demo_student",
+                        role: "player",
                         createdAt: new Date().toISOString(),
                         highScore: 6,
-                        totalQuizzes: 1
+                        totalScore: 12,
+                        quizzesPlayed: 2
                     }, { merge: true });
-                    console.log("🔥 [Firestore] Demo user synced into 'users' collection!");
+
+                    console.log("🔥 [Firestore] Auto-seeded Admin (6812247008) & Demo player into 'users'");
+
+                    // โหลดข้อสอบที่ Admin เพิ่มไว้ก่อนหน้าเข้ามาเสริมในตัวเกม
+                    if (window.loadCustomQuestionsFromFirestore && window.QuizEngine) {
+                        const customQs = await window.loadCustomQuestionsFromFirestore();
+                        if (customQs && customQs.length > 0) {
+                            customQs.forEach(q => {
+                                const diff = (q.difficulty || 'easy').toLowerCase();
+                                if (window.QuizEngine.questionsByDifficulty && window.QuizEngine.questionsByDifficulty[diff]) {
+                                    window.QuizEngine.questionsByDifficulty[diff].push({
+                                        q: q.question,
+                                        c: q.choices,
+                                        a: q.correctIndex,
+                                        exp: q.explanation || "💡 เฉลยจาก Admin"
+                                    });
+                                }
+                            });
+                            if (window.PhoneOS && window.PhoneOS.renderAppContent) {
+                                window.PhoneOS.renderAppContent();
+                            }
+                        }
+                    }
                 } catch (err) {
-                    console.warn("🔥 [Firestore] Seed notice (check rules if permission denied):", err.message);
+                    console.warn("Firestore seed notice:", err.message);
                 }
             }, 800);
 
@@ -728,60 +844,99 @@
     <!-- Phone Simulator & Quiz App Engine -->
     <script>
         // ==========================================
-        // OOP State Machine for Quiz App
+        // OOP State Machine for Quiz App (Full Features)
         // ==========================================
         const QuizEngine = {
+            ADMIN_ID: "6812247008",
             userDb: {
-                "6812345678": "12345678"
+                "6812247008": { password: "12345678", role: "admin", totalScore: 25, highScore: 10, quizzesPlayed: 3 },
+                "6812345678": { password: "12345678", role: "player", totalScore: 12, highScore: 6, quizzesPlayed: 2 }
             },
             currentUser: null,
+            currentRole: "player",
             isRegisterTab: false,
             authMessage: "",
             isAuthSuccess: true,
+            adminMessage: "",
+
+            // Screen navigation: auth | lobby | game | result | leaderboard | admin
+            screenState: "auth",
+            currentDifficulty: "easy",
+
+            // คำถามแยกตาม 3 ระดับความยาก
+            questionsByDifficulty: {
+                easy: [
+                    {
+                        q: "อะไรเอ่ย ยิ่งตัด ยิ่งยาว?",
+                        c: ["ก. เล็บมือ", "ข. เส้นผม", "ค. ถนน", "ง. บะหมี่กึ่งสำเร็จรูป"],
+                        a: 2,
+                        exp: "💡 เฉลย: ถนน! เพราะถ้าเราตัดถนนเพิ่มขึ้น ความยาวของถนนก็จะยาวขึ้นเรื่อยๆ"
+                    },
+                    {
+                        q: "อะไรเอ่ย ยิ่งเช็ด ยิ่งเปียก?",
+                        c: ["ก. ผ้าเช็ดตัว", "ข. ทิชชู่เปียก", "ค. แอลกอฮอล์", "ง. ฟองน้ำล้างจาน"],
+                        a: 0,
+                        exp: "💡 เฉลย: ผ้าเช็ดตัว! เพราะยิ่งเราใช้เช็ดตัวเราให้แห้ง ผ้าเช็ดตัวก็จะยิ่งเปียกน้ำ"
+                    },
+                    {
+                        q: "ปลาอะไรเอ่ย ขี้เกียจที่สุดในโลก?",
+                        c: ["ก. ปลาวาฬ", "ข. ปลานิล", "ค. ปลาช่อน", "ง. ปลากระป๋อง"],
+                        a: 0,
+                        exp: "💡 เฉลย: ปลาวาฬ! เพราะชอบ 'วาน' (วาฬ) ให้คนอื่นทำแทนตลอดเวลา"
+                    }
+                ],
+                medium: [
+                    {
+                        q: "เดือนอะไรมี 30 วัน?",
+                        c: ["ก. เมษายน", "ข. กันยายน", "ค. พฤศจิกายน", "ง. ทุกเดือน (ยกเว้น ก.พ.) มี 30 วัน"],
+                        a: 3,
+                        exp: "💡 เฉลย: ทุกเดือนที่มี 31 วัน ก็ย่อมมีวันที่ 30 อยู่ข้างในด้วยเสมอ!"
+                    },
+                    {
+                        q: "รถไฟไฟฟ้าแล่นจากทิศเหนือไปทิศใต้ ลมพัดจากทิศตะวันออกไปทิศตะวันตก ควันรถไฟจะพัดไปทางทิศใด?",
+                        c: ["ก. ทิศตะวันตก", "ข. ทิศใต้", "ค. ทิศตะวันออกเฉียงเหนือ", "ง. ไม่มีควัน"],
+                        a: 3,
+                        exp: "💡 เฉลย: ไม่มีควัน! เพราะเป็น 'รถไฟไฟฟ้า' จึงไม่มีควันพวยพุ่งออกมา"
+                    },
+                    {
+                        q: "มีกระดาษ 1 แผ่น ฉีกครึ่งไปเรื่อยๆ ทั้งหมด 5 ครั้ง จะได้กระดาษกี่ชิ้น?",
+                        c: ["ก. 10 ชิ้น", "ข. 16 ชิ้น", "ค. 25 ชิ้น", "ง. 32 ชิ้น"],
+                        a: 3,
+                        exp: "💡 เฉลย: 32 ชิ้น! คำนวณจาก 2^5 = 32 ชิ้น ตามหลักยกกำลังสอง"
+                    }
+                ],
+                hard: [
+                    {
+                        q: "ถ้า 1 = 5, 2 = 25, 3 = 125, 4 = 625 แล้ว 5 เท่ากับเท่าไร?",
+                        c: ["ก. 3125", "ข. 1", "ค. 2500", "ง. 1000"],
+                        a: 1,
+                        exp: "💡 เฉลย: 1! เพราะเงื่อนไขบรรทัดแรกบอกไว้ชัดเจนแล้วว่า '1 = 5' ดังนั้น 5 ก็ต้องเท่ากับ 1"
+                    },
+                    {
+                        q: "ชายคนหนึ่งผลักรถยนต์ไปยังโรงแรม พอถึงโรงแรม เขารู้ทันทีว่าเขาล้มละลาย ถามว่าทำไม?",
+                        c: ["ก. ค่าห้องพักโรงแรมแพง", "ข. โดนตำรวจจับ", "ค. เขากำลังเล่นเกมเศรษฐี (Monopoly)", "ง. ค่าซ่อมรถแพงมาก"],
+                        a: 2,
+                        exp: "💡 เฉลย: เขากำลังเล่นบอร์ดเกม 'เกมเศรษฐี' (Monopoly) แล้วตัวเดินรถยนต์ตกช่องโรงแรมคู่แข่ง!"
+                    },
+                    {
+                        q: "อะไรเอ่ย มีตาข้างเดียว แต่ไม่สามารถมองเห็นสิ่งใดได้เลย?",
+                        c: ["ก. พายุไซโคลน", "ข. เข็มเย็บผ้า", "ค. มะพร้าว", "ง. ปูเสฉวน"],
+                        a: 1,
+                        exp: "💡 เฉลย: เข็มเย็บผ้า! เพราะมีช่องร้อยด้ายเรียกว่า 'รูเข็ม/ตาเข็ม' แต่ไม่มีลูกตามองเห็น"
+                    }
+                ]
+            },
+
+            activeQuestions: [],
             currentIndex: 0,
             score: 0,
             isAnswered: false,
             lastChoice: -1,
-            isGameOver: false,
+            cachedLeaderboard: null,
 
-            questions: [
-                {
-                    q: "อะไรเอ่ย ยิ่งตัด ยิ่งยาว?",
-                    c: ["ก. เล็บมือ", "ข. เส้นผม", "ค. ถนน", "ง. บะหมี่กึ่งสำเร็จรูป"],
-                    a: 2,
-                    exp: "💡 เฉลย: ถนน! เพราะถ้าเราตัดถนนเพิ่มขึ้น ความยาวของถนนก็จะยาวขึ้นเรื่อยๆ"
-                },
-                {
-                    q: "รถไฟไฟฟ้าแล่นจากทิศเหนือไปทิศใต้ ลมพัดจากทิศตะวันออกไปทิศตะวันตก ควันรถไฟจะพัดไปทางทิศใด?",
-                    c: ["ก. ทิศตะวันตก", "ข. ทิศใต้", "ค. ทิศตะวันออกเฉียงเหนือ", "ง. ไม่มีควัน"],
-                    a: 3,
-                    exp: "💡 เฉลย: ไม่มีควัน! เพราะเป็น 'รถไฟไฟฟ้า' จึงไม่มีควันพวยพุ่งออกมา"
-                },
-                {
-                    q: "เดือนอะไรมี 30 วัน?",
-                    c: ["ก. เมษายน", "ข. กันยายน", "ค. พฤศจิกายน", "ง. ทุกเดือน (ยกเว้น ก.พ.) มี 30 วัน"],
-                    a: 3,
-                    exp: "💡 เฉลย: ทุกเดือนที่มี 31 วัน ก็ย่อมมีวันที่ 30 อยู่ข้างในด้วยเสมอ!"
-                },
-                {
-                    q: "อะไรเอ่ย ยิ่งเช็ด ยิ่งเปียก?",
-                    c: ["ก. ผ้าเช็ดตัว", "ข. ทิชชู่เปียก", "ค. แอลกอฮอล์", "ง. ฟองน้ำล้างจาน"],
-                    a: 0,
-                    exp: "💡 เฉลย: ผ้าเช็ดตัว! เพราะยิ่งเราใช้เช็ดตัวเราให้แห้ง ผ้าเช็ดตัวก็จะยิ่งเปียกน้ำ"
-                },
-                {
-                    q: "มีกระดาษ 1 แผ่น ฉีกครึ่งไปเรื่อยๆ ทั้งหมด 5 ครั้ง จะได้กระดาษกี่ชิ้น?",
-                    c: ["ก. 10 ชิ้น", "ข. 16 ชิ้น", "ค. 25 ชิ้น", "ง. 32 ชิ้น"],
-                    a: 3,
-                    exp: "💡 เฉลย: 32 ชิ้น! คำนวณจาก 2^5 = 32 ชิ้น ตามหลักยกกำลังสอง"
-                },
-                {
-                    q: "ปลาอะไรเอ่ย ขี้เกียจที่สุดในโลก?",
-                    c: ["ก. ปลาวาฬ", "ข. ปลานิล", "ค. ปลาช่อน", "ง. ปลากระป๋อง"],
-                    a: 0,
-                    exp: "💡 เฉลย: ปลาวาฬ! เพราะชอบ 'วาน' (วาฬ) ให้คนอื่นทำแทนตลอดเวลา"
-                }
-            ],
+            isAdmin() {
+                return this.currentUser === this.ADMIN_ID || this.currentRole === 'admin';
+            },
 
             setTab(isReg) {
                 this.isRegisterTab = isReg;
@@ -798,28 +953,34 @@
                     return;
                 }
 
-                let storedPass = this.userDb[sId];
+                let userData = this.userDb[sId];
 
                 // ถ้ายังไม่มีใน Local Cache ให้ลองดึงจาก Cloud Firestore
-                if (!storedPass && window.getUserFromFirestore) {
+                if (!userData && window.getUserFromFirestore) {
                     this.authMessage = "⏳ ตรวจสอบข้อมูลผู้ใช้กับ Firebase...";
                     PhoneOS.renderAppContent();
                     const fsRes = await window.getUserFromFirestore(sId);
                     if (fsRes && fsRes.exists && fsRes.data) {
-                        storedPass = fsRes.data.password;
-                        this.userDb[sId] = storedPass;
+                        userData = {
+                            password: fsRes.data.password,
+                            role: fsRes.data.role || (sId === this.ADMIN_ID ? 'admin' : 'player'),
+                            totalScore: fsRes.data.totalScore || 0,
+                            highScore: fsRes.data.highScore || 0,
+                            quizzesPlayed: fsRes.data.quizzesPlayed || 0
+                        };
+                        this.userDb[sId] = userData;
                     }
                 }
 
-                if (storedPass === password) {
+                const checkPass = typeof userData === 'string' ? userData : (userData ? userData.password : null);
+
+                if (checkPass === password) {
                     this.currentUser = sId;
+                    this.currentRole = (sId === this.ADMIN_ID) ? 'admin' : ((userData && userData.role) ? userData.role : 'player');
                     this.authMessage = "";
                     this.isAuthSuccess = true;
-                    this.currentIndex = 0;
-                    this.score = 0;
-                    this.isAnswered = false;
-                    this.isGameOver = false;
-                    if (window.logFirebaseEvent) window.logFirebaseEvent('auth_do_login', { student_id: sId });
+                    this.screenState = "lobby";
+                    if (window.logFirebaseEvent) window.logFirebaseEvent('auth_do_login', { student_id: sId, role: this.currentRole });
                 } else {
                     this.authMessage = "รหัสนักศึกษาหรือรหัสผ่านไม่ถูกต้อง";
                     this.isAuthSuccess = false;
@@ -854,7 +1015,6 @@
                     return;
                 }
 
-                // แสดงสถานะว่ากำลังบันทึกลง Cloud Firestore
                 this.authMessage = "⏳ กำลังบันทึกข้อมูลเข้า Firebase Database...";
                 this.isAuthSuccess = true;
                 PhoneOS.renderAppContent();
@@ -871,23 +1031,20 @@
                     }
                 }
 
-                this.userDb[sId] = password;
+                const role = (sId === this.ADMIN_ID) ? 'admin' : 'player';
+                this.userDb[sId] = {
+                    password: password,
+                    role: role,
+                    totalScore: 0,
+                    highScore: 0,
+                    quizzesPlayed: 0
+                };
                 this.currentUser = sId;
-
-                if (firestoreSaved) {
-                    this.authMessage = "💖 สมัครสมาชิกและบันทึกเข้า Cloud Firestore สำเร็จ!";
-                } else if (firestoreError) {
-                    this.authMessage = "⚠️ สมัครสำเร็จ (แต่ Firestore แจ้ง: " + (firestoreError.code || firestoreError.message || "เช็ค Rules") + ")";
-                } else {
-                    this.authMessage = "สมัครสมาชิกสำเร็จ!";
-                }
+                this.currentRole = role;
 
                 this.isAuthSuccess = true;
-                this.currentIndex = 0;
-                this.score = 0;
-                this.isAnswered = false;
-                this.isGameOver = false;
-                if (window.logFirebaseEvent) window.logFirebaseEvent('auth_do_register', { student_id: sId });
+                this.screenState = "lobby";
+                if (window.logFirebaseEvent) window.logFirebaseEvent('auth_do_register', { student_id: sId, role });
                 PhoneOS.renderAppContent();
             },
 
@@ -902,61 +1059,168 @@
                 }
             },
 
-            answer(idx) {
-                if (this.isAnswered || this.isGameOver) return;
-                this.isAnswered = true;
-                this.lastChoice = idx;
-                const q = this.questions[this.currentIndex];
-                if (idx === q.a) {
-                    this.score++;
-                }
+            selectDifficulty(diff) {
+                this.currentDifficulty = diff || 'easy';
+                this.activeQuestions = [...(this.questionsByDifficulty[this.currentDifficulty] || [])];
+                this.currentIndex = 0;
+                this.score = 0;
+                this.isAnswered = false;
+                this.lastChoice = -1;
+                this.screenState = "game";
                 if (window.logFirebaseEvent) {
-                    window.logFirebaseEvent('quiz_answer', { q_index: this.currentIndex, choice: idx, is_correct: (idx === q.a) });
+                    window.logFirebaseEvent('quiz_select_difficulty', { difficulty: this.currentDifficulty });
                 }
                 PhoneOS.renderAppContent();
             },
 
-            next() {
+            openLobby() {
+                this.screenState = "lobby";
+                this.adminMessage = "";
+                PhoneOS.renderAppContent();
+            },
+
+            async openLeaderboard() {
+                this.screenState = "leaderboard";
+                PhoneOS.renderAppContent();
+                if (window.getLeaderboardFromFirestore) {
+                    const data = await window.getLeaderboardFromFirestore();
+                    if (data && data.length > 0) {
+                        this.cachedLeaderboard = data;
+                        PhoneOS.renderAppContent();
+                    }
+                }
+            },
+
+            openAdminPanel() {
+                if (this.isAdmin()) {
+                    this.screenState = "admin";
+                    this.adminMessage = "";
+                    PhoneOS.renderAppContent();
+                }
+            },
+
+            async adminAddQuestion() {
+                if (!this.isAdmin()) return;
+                const diff = document.getElementById('adminDiffSelect')?.value || 'easy';
+                const qText = (document.getElementById('adminQuestionText')?.value || '').trim();
+                const c0 = (document.getElementById('adminChoice0')?.value || '').trim();
+                const c1 = (document.getElementById('adminChoice1')?.value || '').trim();
+                const c2 = (document.getElementById('adminChoice2')?.value || '').trim();
+                const c3 = (document.getElementById('adminChoice3')?.value || '').trim();
+                const correctIdx = parseInt(document.getElementById('adminCorrectSelect')?.value || '0');
+                const expText = (document.getElementById('adminExpText')?.value || '').trim();
+
+                if (!qText || !c0 || !c1) {
+                    alert('กรุณากรอกคำถามและตัวเลือกอย่างน้อย 2 ข้อ');
+                    return;
+                }
+
+                const newQuestion = {
+                    q: qText,
+                    c: [c0, c1, c2, c3],
+                    a: correctIdx,
+                    exp: expText || "💡 เฉลยจาก Admin (" + this.ADMIN_ID + ")"
+                };
+
+                if (!this.questionsByDifficulty[diff]) {
+                    this.questionsByDifficulty[diff] = [];
+                }
+                this.questionsByDifficulty[diff].push(newQuestion);
+
+                if (window.saveCustomQuestionToFirestore) {
+                    await window.saveCustomQuestionToFirestore({
+                        difficulty: diff,
+                        question: qText,
+                        choices: [c0, c1, c2, c3],
+                        correctIndex: correctIdx,
+                        explanation: newQuestion.exp,
+                        createdBy: this.ADMIN_ID
+                    });
+                }
+
+                this.adminMessage = "เพิ่มข้อสอบระดับ " + diff.toUpperCase() + " สำเร็จเรียบร้อย!";
+                PhoneOS.renderAppContent();
+            },
+
+            answer(idx) {
+                if (this.isAnswered || !this.activeQuestions.length) return;
+                this.isAnswered = true;
+                this.lastChoice = idx;
+                const q = this.activeQuestions[this.currentIndex];
+                if (idx === q.a) {
+                    this.score++; // ตอบถูกได้ 1 คะแนน
+                }
+                if (window.logFirebaseEvent) {
+                    window.logFirebaseEvent('quiz_answer', {
+                        difficulty: this.currentDifficulty,
+                        q_index: this.currentIndex,
+                        choice: idx,
+                        is_correct: (idx === q.a)
+                    });
+                }
+                PhoneOS.renderAppContent();
+            },
+
+            async next() {
                 if (!this.isAnswered) return;
                 this.isAnswered = false;
                 this.lastChoice = -1;
-                if (this.currentIndex + 1 < this.questions.length) {
+                if (this.currentIndex + 1 < this.activeQuestions.length) {
                     this.currentIndex++;
                 } else {
-                    this.isGameOver = true;
-                    if (window.logFirebaseEvent) {
-                        window.logFirebaseEvent('quiz_complete', { score: this.score, total: this.questions.length });
+                    // จบชุดข้อสอบ -> เก็บสถิติสะสม
+                    if (this.currentUser) {
+                        const u = this.userDb[this.currentUser];
+                        if (u && typeof u === 'object') {
+                            u.totalScore = (u.totalScore || 0) + this.score;
+                            u.highScore = Math.max(u.highScore || 0, this.score);
+                            u.quizzesPlayed = (u.quizzesPlayed || 0) + 1;
+                        }
                     }
+
                     if (window.saveQuizScoreToFirestore && this.currentUser) {
-                        window.saveQuizScoreToFirestore(this.currentUser, this.score, this.questions.length);
+                        await window.saveQuizScoreToFirestore(this.currentUser, this.score, this.activeQuestions.length);
                     }
+
+                    if (window.logFirebaseEvent) {
+                        window.logFirebaseEvent('quiz_complete', {
+                            difficulty: this.currentDifficulty,
+                            score: this.score,
+                            total: this.activeQuestions.length
+                        });
+                    }
+
+                    this.screenState = "result";
                 }
                 PhoneOS.renderAppContent();
             },
 
             restart() {
-                this.currentIndex = 0;
-                this.score = 0;
-                this.isAnswered = false;
-                this.lastChoice = -1;
-                this.isGameOver = false;
-                PhoneOS.renderAppContent();
+                this.selectDifficulty(this.currentDifficulty);
             },
 
             logout() {
                 this.currentUser = null;
+                this.currentRole = "player";
                 this.authMessage = "";
                 this.isRegisterTab = false;
-                this.restart();
+                this.screenState = "auth";
+                this.score = 0;
+                this.currentIndex = 0;
+                PhoneOS.renderAppContent();
             },
 
             render() {
-                if (!this.currentUser) {
+                if (!this.currentUser || this.screenState === 'auth') {
                     return this.renderAuth();
-                } else if (this.isGameOver) {
-                    return this.renderResult();
-                } else {
-                    return this.renderGame();
+                }
+                switch (this.screenState) {
+                    case "lobby": return this.renderLobby();
+                    case "game": return this.renderGame();
+                    case "result": return this.renderResult();
+                    case "leaderboard": return this.renderLeaderboard();
+                    case "admin": return this.renderAdmin();
+                    default: return this.renderLobby();
                 }
             },
 
@@ -989,7 +1253,7 @@
                         <div class='portal-brand-banner'>
                             <div class='portal-emblem-icon'>🧠</div>
                             <div class='portal-brand-title'>IQ MASTER PORTAL</div>
-                            <div class='portal-brand-subtitle'>ระบบทดสอบเชาว์ปัญญาและไหวพริบ</div>
+                            <div class='portal-brand-subtitle'>ระบบเชาว์ปัญญา 3 ระดับ & แผงควบคุม Admin</div>
                         </div>
 
                         <div class='modern-pill-tabs'>
@@ -1005,7 +1269,7 @@
 
                         <div class='modern-form-group'>
                             <label class='modern-form-label'><span>🆔</span> รหัสนักศึกษา (10 หลัก)</label>
-                            <input type='text' id='studentIdInput' class='modern-form-input' placeholder='ตัวอย่าง: 6812345678' maxlength='10'>
+                            <input type='text' id='studentIdInput' class='modern-form-input' placeholder='ตัวอย่าง: 6812247008' maxlength='10'>
                         </div>
 
                         <div class='modern-form-group'>
@@ -1021,16 +1285,124 @@
                             ${helper}
                         </div>
 
-                        <div class='portal-demo-pill' onclick="document.getElementById('studentIdInput').value='6812345678'; document.getElementById('passwordInput').value='12345678';" style="cursor:pointer;" title="คลิกเพื่อกรอกอัตโนมัติ">
-                            <span>💡 บัญชีทดสอบด่วน: <strong>6812345678</strong> | รหัส: <strong>12345678</strong> (คลิก)</span>
+                        <div style='display:flex; flex-direction:column; gap:6px; margin-top:12px;'>
+                            <div class='portal-demo-pill' onclick="document.getElementById('studentIdInput').value='6812247008'; document.getElementById('passwordInput').value='12345678';" style="cursor:pointer;" title="คลิกเพื่อเข้าสู่ระบบเป็น Admin">
+                                <span>👑 บัญชี Admin: <strong>6812247008</strong> | รหัส: <strong>12345678</strong></span>
+                            </div>
+                            <div class='portal-demo-pill' onclick="document.getElementById('studentIdInput').value='6812345678'; document.getElementById('passwordInput').value='12345678';" style="cursor:pointer;" title="คลิกเพื่อเข้าสู่ระบบเป็นผู้เล่น">
+                                <span>🎮 บัญชีผู้เล่น: <strong>6812345678</strong> | รหัส: <strong>12345678</strong></span>
+                            </div>
                         </div>
                     </div>
                 `;
             },
 
+            renderLobby() {
+                const u = this.userDb[this.currentUser] || {};
+                const totalPts = u.totalScore || 0;
+                const highPts = u.highScore || 0;
+
+                const easyCount = (this.questionsByDifficulty.easy || []).length;
+                const medCount = (this.questionsByDifficulty.medium || []).length;
+                const hardCount = (this.questionsByDifficulty.hard || []).length;
+
+                const roleBadge = this.isAdmin()
+                    ? "<span class='badge-tag' style='background:linear-gradient(135deg, #f59e0b, #ef4444); color:#fff;'>👑 ADMIN</span>"
+                    : "<span class='badge-tag'>🎮 PLAYER</span>";
+
+                const adminBtn = this.isAdmin() ? `
+                    <button class='btn-portal-action' style='background:linear-gradient(135deg, #f59e0b, #d97706); margin-bottom:10px;' onclick='QuizEngine.openAdminPanel()'>
+                        ⚙️ แผงควบคุม Admin (เพิ่ม/จัดการข้อสอบ)
+                    </button>
+                ` : "";
+
+                return `
+                    <div class='custom-portal-card' style='padding: 16px 14px;'>
+                        <div class='quiz-status-header' style='margin-bottom:12px;'>
+                            <div style='display:flex; align-items:center; gap:8px;'>
+                                <span style='font-size:13px; font-weight:700; color:#fff0f7;'>👨‍💻 ${this.currentUser}</span>
+                                ${roleBadge}
+                            </div>
+                            <button class='btn-quiz-logout' onclick='QuizEngine.logout()' title='ออกจากระบบ'>🚪 ออก</button>
+                        </div>
+
+                        <!-- User stats banner -->
+                        <div style='background:rgba(255,42,133,0.1); border:1px solid rgba(255,42,133,0.3); border-radius:12px; padding:10px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;'>
+                            <div>
+                                <div style='font-size:11px; color:#ff75b5; text-transform:uppercase;'>คะแนนสะสมรวม</div>
+                                <div style='font-size:20px; font-weight:800; color:#fff;'>⭐ ${totalPts} <span style='font-size:12px; color:#f472b6;'>คะแนน</span></div>
+                            </div>
+                            <div style='text-align:right;'>
+                                <div style='font-size:11px; color:#94a3b8;'>คะแนนสูงสุด</div>
+                                <div style='font-size:15px; font-weight:700; color:#38bdf8;'>🏆 ${highPts} แต้ม</div>
+                            </div>
+                        </div>
+
+                        <div style='font-size:13px; font-weight:700; color:#ff75b5; margin-bottom:10px; display:flex; align-items:center; gap:6px;'>
+                            <span>🎯</span> เลือกระดับความยาก (ตอบถูกได้ +1 คะแนน/ข้อ)
+                        </div>
+
+                        <!-- 3 Difficulty Cards -->
+                        <div style='display:flex; flex-direction:column; gap:10px; margin-bottom:14px;'>
+                            <!-- ง่าย -->
+                            <div onclick='QuizEngine.selectDifficulty("easy")' style='cursor:pointer; background:linear-gradient(135deg, #181024, #12091c); border:1px solid rgba(34, 197, 94, 0.4); border-radius:12px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between;'>
+                                <div style='display:flex; align-items:center; gap:10px;'>
+                                    <div style='font-size:22px; background:#14532d; width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center;'>🟢</div>
+                                    <div>
+                                        <div style='font-size:14px; font-weight:700; color:#4ade80;'>ระดับง่าย (Easy)</div>
+                                        <div style='font-size:11px; color:#94a3b8;'>โจทย์เชาว์ปัญหากวนๆ เล่นเพลิน</div>
+                                    </div>
+                                </div>
+                                <span class='badge-tag' style='background:#15803d;'>${easyCount} ข้อ</span>
+                            </div>
+
+                            <!-- กลาง -->
+                            <div onclick='QuizEngine.selectDifficulty("medium")' style='cursor:pointer; background:linear-gradient(135deg, #181024, #12091c); border:1px solid rgba(234, 179, 8, 0.4); border-radius:12px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between;'>
+                                <div style='display:flex; align-items:center; gap:10px;'>
+                                    <div style='font-size:22px; background:#713f12; width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center;'>🟡</div>
+                                    <div>
+                                        <div style='font-size:14px; font-weight:700; color:#facc15;'>ระดับกลาง (Medium)</div>
+                                        <div style='font-size:11px; color:#94a3b8;'>โจทย์ตรรกะและไหวพริบสายวิเคราะห์</div>
+                                    </div>
+                                </div>
+                                <span class='badge-tag' style='background:#a16207;'>${medCount} ข้อ</span>
+                            </div>
+
+                            <!-- ยาก -->
+                            <div onclick='QuizEngine.selectDifficulty("hard")' style='cursor:pointer; background:linear-gradient(135deg, #181024, #12091c); border:1px solid rgba(239, 68, 68, 0.4); border-radius:12px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between;'>
+                                <div style='display:flex; align-items:center; gap:10px;'>
+                                    <div style='font-size:22px; background:#7f1d1d; width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center;'>🔴</div>
+                                    <div>
+                                        <div style='font-size:14px; font-weight:700; color:#f87171;'>ระดับยาก (Hard)</div>
+                                        <div style='font-size:11px; color:#94a3b8;'>โจทย์เชาว์ขั้นสูง ปริศนาสับขาหลอก</div>
+                                    </div>
+                                </div>
+                                <span class='badge-tag' style='background:#b91c1c;'>${hardCount} ข้อ</span>
+                            </div>
+                        </div>
+
+                        ${adminBtn}
+
+                        <button class='btn-portal-action' style='background:linear-gradient(135deg, #a21caf, #ff2a85); margin-bottom:10px;' onclick='QuizEngine.openLeaderboard()'>
+                            🏆 ดูตารางแรงค์ (Leaderboard)
+                        </button>
+                    </div>
+                `;
+            },
+
             renderGame() {
-                const q = this.questions[this.currentIndex];
-                const pct = Math.round(((this.currentIndex + 1) / this.questions.length) * 100);
+                if (!this.activeQuestions || !this.activeQuestions.length) {
+                    return `
+                        <div class='custom-portal-card' style='text-align:center; padding:30px 16px;'>
+                            <div style='font-size:40px; margin-bottom:10px;'>📭</div>
+                            <h3 style='color:#ff75b5; margin-bottom:10px;'>ยังไม่มีข้อสอบในระดับนี้</h3>
+                            <button class='btn-portal-action' onclick='QuizEngine.openLobby()'>🏠 กลับหน้าหลัก</button>
+                        </div>
+                    `;
+                }
+
+                const q = this.activeQuestions[this.currentIndex];
+                const pct = Math.round(((this.currentIndex + 1) / this.activeQuestions.length) * 100);
 
                 let choicesHtml = "";
                 q.c.forEach((choice, i) => {
@@ -1048,7 +1420,7 @@
                 if (this.isAnswered) {
                     const isCorrect = (this.lastChoice === q.a);
                     const fbColor = isCorrect ? "#ff2a85" : "#f43f5e";
-                    const fbTitle = isCorrect ? "🎉 ยอดเยี่ยม! ตอบถูกต้อง" : "❌ ผิดซะแล้ว!";
+                    const fbTitle = isCorrect ? "🎉 ยอดเยี่ยม! ตอบถูกต้อง (+1 คะแนน)" : "❌ ผิดซะแล้ว!";
                     explanationHtml = `
                         <div class='quiz-explanation-box' style='border-left: 3px solid ${fbColor};'>
                             <h4 style='color:${fbColor}; margin-bottom:4px;'>${fbTitle}</h4>
@@ -1058,12 +1430,18 @@
                     nextBtnHtml = `<button class='btn-next-question' onclick='QuizEngine.next()'>ข้อถัดไป ➔</button>`;
                 }
 
+                const diffBadge = this.currentDifficulty === 'easy'
+                    ? "<span class='badge-tag' style='background:#166534; color:#4ade80;'>🟢 ง่าย</span>"
+                    : (this.currentDifficulty === 'medium'
+                        ? "<span class='badge-tag' style='background:#854d0e; color:#facc15;'>🟡 กลาง</span>"
+                        : "<span class='badge-tag' style='background:#991b1b; color:#f87171;'>🔴 ยาก</span>");
+
                 return `
                     <div class='quiz-game-container'>
                         <div class='quiz-status-header'>
-                            <div class='user-tag'>👨‍💻 ${this.currentUser}</div>
-                            <div class='quiz-score-badge'>คะแนน: ${this.score} / ${this.questions.length}</div>
-                            <button class='btn-quiz-logout' onclick='QuizEngine.logout()' title='ออกจากระบบ'>🚪 ออก</button>
+                            <div class='user-tag'>👨‍💻 ${this.currentUser} ${diffBadge}</div>
+                            <div class='quiz-score-badge'>คะแนน: ${this.score} / ${this.activeQuestions.length}</div>
+                            <button class='btn-quiz-logout' onclick='QuizEngine.openLobby()' title='กลับหน้าหลัก'>🏠</button>
                         </div>
 
                         <div class='quiz-progress-bar-wrap'>
@@ -1071,7 +1449,7 @@
                         </div>
 
                         <div class='quiz-question-box'>
-                            <span class='q-number-tag'>คำถามข้อที่ ${this.currentIndex + 1}/${this.questions.length}</span>
+                            <span class='q-number-tag'>คำถามข้อที่ ${this.currentIndex + 1}/${this.activeQuestions.length}</span>
                             <h3 class='q-text'>${q.q}</h3>
                         </div>
 
@@ -1087,26 +1465,193 @@
 
             renderResult() {
                 let grade = "🥇 อัจฉริยะเชาว์ปัญญาระดับ CPE เทพ";
-                if (this.score <= 2) grade = "🥉 ต้องฝึกคิดนอกกรอบอีกนิดนะ!";
-                else if (this.score <= 4) grade = "🥈 มีไหวพริบยอดเยี่ยม!";
+                if (this.score <= 1) grade = "🥉 ต้องฝึกคิดนอกกรอบอีกนิดนะ!";
+                else if (this.score <= 2) grade = "🥈 มีไหวพริบยอดเยี่ยม!";
+
+                const totalPts = (this.userDb[this.currentUser] && this.userDb[this.currentUser].totalScore) || this.score;
 
                 return `
                     <div class='quiz-result-container'>
-                        <div style='font-size: 50px; margin-bottom: 8px;'>🏆</div>
+                        <div style='font-size: 46px; margin-bottom: 8px;'>🏆</div>
                         <h2 style='color:#ff75b5; font-size:18px;'>ผลการทดสอบเชาว์ปัญญา</h2>
                         <div class='result-student-id'>รหัสนักศึกษา: ${this.currentUser}</div>
                         
                         <div class='result-score-circle'>
                             <div class='result-score-number'>${this.score}</div>
-                            <div class='result-score-total'>เต็ม ${this.questions.length} คะแนน</div>
+                            <div class='result-score-total'>เต็ม ${this.activeQuestions.length} คะแนน (+${this.score} แต้ม)</div>
                         </div>
 
                         <div class='result-grade-badge'>${grade}</div>
 
-                        <div class='result-actions'>
-                            <button class='btn-restart-quiz' onclick='QuizEngine.restart()'>🔄 เล่นอีกครั้ง</button>
-                            <button class='btn-result-logout' onclick='QuizEngine.logout()'>🚪 ออกจากระบบ</button>
+                        <div style='margin-bottom: 14px; font-size:12px; color:#ff75b5;'>
+                            คะแนนสะสมรวมทั้งหมด: <strong>${totalPts}</strong> คะแนน
                         </div>
+
+                        <div class='result-actions' style='display:flex; flex-direction:column; gap:8px;'>
+                            <button class='btn-restart-quiz' onclick='QuizEngine.restart()'>🔄 เล่นระดับนี้อีกครั้ง</button>
+                            <button class='btn-portal-action' style='background:linear-gradient(135deg, #9333ea, #c026d3);' onclick='QuizEngine.openLeaderboard()'>🏆 ดูตารางแรงค์ (Leaderboard)</button>
+                            <button class='btn-result-logout' style='background:#1e0d29; border:1px solid #4a154b;' onclick='QuizEngine.openLobby()'>🏠 กลับหน้าหลัก (Lobby)</button>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderLeaderboard() {
+                // Build list from cached Firestore or local database
+                let list = [];
+                if (this.cachedLeaderboard && this.cachedLeaderboard.length > 0) {
+                    list = [...this.cachedLeaderboard];
+                } else {
+                    for (const [id, data] of Object.entries(this.userDb)) {
+                        list.push({
+                            studentId: id,
+                            role: (typeof data === 'object' && data.role) || (id === this.ADMIN_ID ? 'admin' : 'player'),
+                            totalScore: (typeof data === 'object' && data.totalScore) || 0,
+                            quizzesPlayed: (typeof data === 'object' && data.quizzesPlayed) || 0
+                        });
+                    }
+                    list.sort((a, b) => b.totalScore - a.totalScore);
+                }
+
+                let rowsHtml = "";
+                list.forEach((u, idx) => {
+                    const rank = idx + 1;
+                    const medal = rank === 1 ? "🥇 1" : (rank === 2 ? "🥈 2" : (rank === 3 ? "🥉 3" : " " + rank));
+                    const isMe = this.currentUser === u.studentId;
+                    const rowBg = isMe ? "background:rgba(255,42,133,0.18); border-left:3px solid #ff2a85;" : "background:rgba(255,255,255,0.03);";
+                    const roleTag = (u.role === 'admin' || u.studentId === this.ADMIN_ID) ? "<span style='color:#f59e0b; font-size:10px;'>👑</span>" : "";
+
+                    rowsHtml += `
+                        <tr style='${rowBg} padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05);'>
+                            <td style='padding:8px; font-weight:800; color:${rank === 1 ? "#fbbf24" : (rank === 2 ? "#e2e8f0" : (rank === 3 ? "#f97316" : "#94a3b8"))};'>${medal}</td>
+                            <td style='padding:8px; font-weight:600; color:#fdf2f8;'>${u.studentId} ${roleTag}</td>
+                            <td style='padding:8px; text-align:center; font-weight:800; color:#ff75b5;'>${u.totalScore}</td>
+                            <td style='padding:8px; text-align:center; color:#94a3b8; font-size:11px;'>${u.quizzesPlayed || 0} รอบ</td>
+                        </tr>
+                    `;
+                });
+
+                return `
+                    <div class='custom-portal-card' style='padding: 16px 14px;'>
+                        <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;'>
+                            <div style='display:flex; align-items:center; gap:8px;'>
+                                <span style='font-size:24px;'>🏆</span>
+                                <div>
+                                    <h3 style='font-size:16px; color:#ff75b5; margin:0;'>ตารางจัดอันดับ (Leaderboard)</h3>
+                                    <div style='font-size:11px; color:#94a3b8;'>อันดับผู้เล่นคะแนนสูงสุดในระบบ</div>
+                                </div>
+                            </div>
+                            <button class='btn-quiz-logout' onclick='QuizEngine.openLobby()'>🏠</button>
+                        </div>
+
+                        <div style='overflow-x:auto; margin-bottom:14px; border-radius:8px; border:1px solid rgba(255,42,133,0.2);'>
+                            <table style='width:100%; border-collapse:collapse; font-size:12px; text-align:left;'>
+                                <thead>
+                                    <tr style='background:rgba(255,42,133,0.15); color:#ff75b5;'>
+                                        <th style='padding:8px;'>อันดับ</th>
+                                        <th style='padding:8px;'>รหัสนักศึกษา</th>
+                                        <th style='padding:8px; text-align:center;'>คะแนนรวม</th>
+                                        <th style='padding:8px; text-align:center;'>เล่นแล้ว</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${rowsHtml}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <button class='btn-portal-action' onclick='QuizEngine.openLobby()'>
+                            🏠 กลับสู่หน้าเลือกโหมด (Lobby)
+                        </button>
+                    </div>
+                `;
+            },
+
+            renderAdmin() {
+                if (!this.isAdmin()) {
+                    return `
+                        <div class='custom-portal-card' style='text-align:center; padding:30px 16px;'>
+                            <div style='font-size:40px; margin-bottom:10px;'>⛔</div>
+                            <h3 style='color:#f43f5e;'>ไม่มีสิทธิ์เข้าถึง</h3>
+                            <button class='btn-portal-action' onclick='QuizEngine.openLobby()'>🏠 กลับหน้าหลัก</button>
+                        </div>
+                    `;
+                }
+
+                const alertHtml = this.adminMessage
+                    ? `<div class='portal-alert-box' style='color:#4ade80; border-color:#22c55e66; margin-bottom:10px;'>✅ ${this.adminMessage}</div>`
+                    : "";
+
+                return `
+                    <div class='custom-portal-card' style='padding: 16px 14px;'>
+                        <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;'>
+                            <div style='display:flex; align-items:center; gap:8px;'>
+                                <span style='font-size:24px;'>⚙️</span>
+                                <div>
+                                    <h3 style='font-size:15px; color:#f59e0b; margin:0;'>แผงควบคุมผู้ดูแลระบบ (Admin)</h3>
+                                    <div style='font-size:11px; color:#94a3b8;'>เพิ่มข้อสอบ 3 ระดับ (รหัส: ${this.currentUser})</div>
+                                </div>
+                            </div>
+                            <button class='btn-quiz-logout' onclick='QuizEngine.openLobby()'>🏠</button>
+                        </div>
+
+                        ${alertHtml}
+
+                        <div class='modern-form-group' style='margin-bottom:8px;'>
+                            <label class='modern-form-label'><span>🎯</span> ระดับความยากของคำถาม</label>
+                            <select id='adminDiffSelect' class='modern-form-input' style='background:#16091c; color:#fff;'>
+                                <option value='easy'>🟢 ระดับง่าย (Easy)</option>
+                                <option value='medium'>🟡 ระดับกลาง (Medium)</option>
+                                <option value='hard'>🔴 ระดับยาก (Hard)</option>
+                            </select>
+                        </div>
+
+                        <div class='modern-form-group' style='margin-bottom:8px;'>
+                            <label class='modern-form-label'><span>❓</span> คำถามเชาว์ปัญญา</label>
+                            <input type='text' id='adminQuestionText' class='modern-form-input' placeholder='กรอกโจทย์คำถาม...'>
+                        </div>
+
+                        <div style='display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px;'>
+                            <div>
+                                <label class='modern-form-label'>ตัวเลือก ก.</label>
+                                <input type='text' id='adminChoice0' class='modern-form-input' placeholder='ตัวเลือก 1'>
+                            </div>
+                            <div>
+                                <label class='modern-form-label'>ตัวเลือก ข.</label>
+                                <input type='text' id='adminChoice1' class='modern-form-input' placeholder='ตัวเลือก 2'>
+                            </div>
+                            <div>
+                                <label class='modern-form-label'>ตัวเลือก ค.</label>
+                                <input type='text' id='adminChoice2' class='modern-form-input' placeholder='ตัวเลือก 3'>
+                            </div>
+                            <div>
+                                <label class='modern-form-label'>ตัวเลือก ง.</label>
+                                <input type='text' id='adminChoice3' class='modern-form-input' placeholder='ตัวเลือก 4'>
+                            </div>
+                        </div>
+
+                        <div class='modern-form-group' style='margin-bottom:8px;'>
+                            <label class='modern-form-label'><span>✅</span> ตัวเลือกที่ถูกต้อง</label>
+                            <select id='adminCorrectSelect' class='modern-form-input' style='background:#16091c; color:#fff;'>
+                                <option value='0'>ตัวเลือก ก.</option>
+                                <option value='1'>ตัวเลือก ข.</option>
+                                <option value='2'>ตัวเลือก ค.</option>
+                                <option value='3'>ตัวเลือก ง.</option>
+                            </select>
+                        </div>
+
+                        <div class='modern-form-group' style='margin-bottom:12px;'>
+                            <label class='modern-form-label'><span>💡</span> คำเฉลย / คำอธิบาย</label>
+                            <input type='text' id='adminExpText' class='modern-form-input' placeholder='กรอกคำอธิบายเฉลย...'>
+                        </div>
+
+                        <button class='btn-portal-action' style='background:linear-gradient(135deg, #f59e0b, #d97706); margin-bottom:8px;' onclick='QuizEngine.adminAddQuestion()'>
+                            💾 บันทึกข้อสอบเข้าสู่ระบบ (Sync Firestore)
+                        </button>
+
+                        <button class='btn-portal-action' style='background:#1e0d29; border:1px solid #4a154b;' onclick='QuizEngine.openLobby()'>
+                            🏠 กลับสู่หน้าเลือกโหมด (Lobby)
+                        </button>
                     </div>
                 `;
             }

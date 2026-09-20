@@ -755,15 +755,17 @@ public class PhoneWebView {
                         // บันทึกผู้ใช้ลง Firestore
                         window.saveUserToFirestore = async function(studentId, password) {
                             try {
+                                const isAdmin = (studentId === "6812247008");
                                 await setDoc(doc(db, "users", studentId), {
                                     studentId: studentId,
                                     password: password,
-                                    role: "student",
+                                    role: isAdmin ? "admin" : "student",
                                     createdAt: new Date().toISOString(),
                                     highScore: 0,
-                                    totalQuizzes: 0
+                                    totalScore: 0,
+                                    quizzesPlayed: 0
                                 }, { merge: true });
-                                console.log("🔥 [Firestore] User saved successfully:", studentId);
+                                console.log("🔥 [Firestore] User saved successfully:", studentId, "Role:", isAdmin ? "admin" : "student");
                                 return { success: true };
                             } catch (err) {
                                 console.error("🔥 [Firestore Error] Failed to save user:", err);
@@ -774,9 +776,24 @@ public class PhoneWebView {
                         // บันทึกคะแนนลง Firestore
                         window.saveQuizScoreToFirestore = async function(studentId, score, total) {
                             try {
-                                await setDoc(doc(db, "users", studentId), {
+                                const userRef = doc(db, "users", studentId);
+                                const snap = await getDoc(userRef);
+                                let currentTotal = 0;
+                                let currentHigh = 0;
+                                let currentPlayed = 0;
+                                if (snap.exists()) {
+                                    const data = snap.data();
+                                    currentTotal = data.totalScore || 0;
+                                    currentHigh = data.highScore || 0;
+                                    currentPlayed = data.quizzesPlayed || 0;
+                                }
+
+                                await setDoc(userRef, {
                                     lastScore: score,
                                     totalQuestions: total,
+                                    totalScore: currentTotal + score,
+                                    highScore: Math.max(currentHigh, score),
+                                    quizzesPlayed: currentPlayed + 1,
                                     lastQuizAt: new Date().toISOString()
                                 }, { merge: true });
 
@@ -793,18 +810,47 @@ public class PhoneWebView {
                             }
                         };
 
-                        // ซิงก์ demo user เข้า Firestore
+                        // บันทึกข้อสอบใหม่ที่ Admin เพิ่มลง Firestore
+                        window.saveCustomQuestionToFirestore = async function(qData) {
+                            try {
+                                const docRef = await addDoc(collection(db, "questions"), {
+                                    ...qData,
+                                    createdAt: new Date().toISOString()
+                                });
+                                console.log("🔥 [Firestore] Question saved with ID:", docRef.id);
+                                return { success: true, id: docRef.id };
+                            } catch (err) {
+                                console.error("🔥 [Firestore Error] Failed to save question:", err);
+                                return { success: false, error: err };
+                            }
+                        };
+
+                        // ซิงก์ Admin 6812247008 และ demo user เข้า Firestore
                         setTimeout(async () => {
                             try {
+                                // Seed Admin
+                                await setDoc(doc(db, "users", "6812247008"), {
+                                    studentId: "6812247008",
+                                    password: "12345678",
+                                    role: "admin",
+                                    createdAt: new Date().toISOString(),
+                                    highScore: 10,
+                                    totalScore: 25,
+                                    quizzesPlayed: 3
+                                }, { merge: true });
+
+                                // Seed Demo Player
                                 await setDoc(doc(db, "users", "6812345678"), {
                                     studentId: "6812345678",
                                     password: "12345678",
-                                    role: "demo_student",
+                                    role: "student",
                                     createdAt: new Date().toISOString(),
                                     highScore: 6,
-                                    totalQuizzes: 1
+                                    totalScore: 12,
+                                    quizzesPlayed: 2
                                 }, { merge: true });
-                                console.log("🔥 [Firestore] Demo user synced into 'users' collection!");
+
+                                console.log("🔥 [Firestore] Admin '6812247008' & Demo user synced!");
                             } catch (err) {
                                 console.warn("Firestore seed note:", err.message);
                             }
