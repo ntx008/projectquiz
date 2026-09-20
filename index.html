@@ -1574,7 +1574,7 @@
                 return `
                     <div class='custom-portal-card' style='padding:0; overflow:hidden; border-radius:16px;'>
 
-                        <!-- Hero Banner -->
+                        <!-- Hero Banner (ไม่มี stats แล้ว) -->
                         <div style='
                             background: linear-gradient(135deg, #2d0036 0%, #1a0028 40%, #0d001a 100%);
                             padding: 28px 20px 20px;
@@ -1597,23 +1597,7 @@
                                 font-weight: 600;
                                 letter-spacing: 2px;
                                 text-transform: uppercase;
-                                margin-bottom: 14px;
                             '>เกมตอบปัญหาเชาว์ปัญญา 3 ระดับ</div>
-
-                            <div style='display:flex; justify-content:center; gap:12px; margin-bottom:4px;'>
-                                <div style='background:rgba(255,42,133,0.15); border:1px solid rgba(255,42,133,0.3); border-radius:8px; padding:8px 12px; text-align:center;'>
-                                    <div style='font-size:16px; font-weight:800; color:#ff75b5;'>${totalPts}</div>
-                                    <div style='font-size:10px; color:#94a3b8;'>คะแนนสะสม</div>
-                                </div>
-                                <div style='background:rgba(251,191,36,0.12); border:1px solid rgba(251,191,36,0.25); border-radius:8px; padding:8px 12px; text-align:center;'>
-                                    <div style='font-size:16px; font-weight:800; color:#fbbf24;'>${highPts}</div>
-                                    <div style='font-size:10px; color:#94a3b8;'>สูงสุด</div>
-                                </div>
-                                <div style='background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.25); border-radius:8px; padding:8px 12px; text-align:center;'>
-                                    <div style='font-size:16px; font-weight:800; color:#a78bfa;'>${played}</div>
-                                    <div style='font-size:10px; color:#94a3b8;'>รอบที่เล่น</div>
-                                </div>
-                            </div>
                         </div>
 
                         <!-- Player Info -->
@@ -1648,7 +1632,7 @@
                         </div>
 
                         <!-- PLAY Button -->
-                        <div style='padding:16px 18px 18px;'>
+                        <div style='padding:16px 18px 10px;'>
                             ${totalQ === 0 ? `
                                 <div style='background:#14051a; border:1px dashed rgba(255,42,133,0.3); border-radius:10px; padding:14px; text-align:center; margin-bottom:10px;'>
                                     <div style='font-size:24px; margin-bottom:6px;'>📭</div>
@@ -1682,6 +1666,25 @@
                                 </button>
                             </div>
                         </div>
+
+                        <!-- Score Stats Bar (ด้านล่างสุด) -->
+                        <div style='
+                            display:flex;
+                            gap:0;
+                            background: linear-gradient(135deg, #1a0028, #110118);
+                            border-top: 1px solid rgba(255,42,133,0.2);
+                            margin-top:10px;
+                        '>
+                            <div style='flex:1; padding:10px 8px; text-align:center; border-right:1px solid rgba(255,42,133,0.15);'>
+                                <div style='font-size:10px; color:#ff75b5; font-weight:600; margin-bottom:3px;'>⭐ คะแนนสะสมรวม</div>
+                                <div style='font-size:18px; font-weight:900; color:#fff;'>${totalPts} <span style='font-size:11px; color:#ff75b5; font-weight:600;'>คะแนน</span></div>
+                            </div>
+                            <div style='flex:1; padding:10px 8px; text-align:center;'>
+                                <div style='font-size:10px; color:#fbbf24; font-weight:600; margin-bottom:3px;'>🏆 คะแนนสูงสุด</div>
+                                <div style='font-size:18px; font-weight:900; color:#fff;'>${highPts} <span style='font-size:11px; color:#fbbf24; font-weight:600;'>แต้ม</span></div>
+                            </div>
+                        </div>
+
                     </div>
                 `;
             },
