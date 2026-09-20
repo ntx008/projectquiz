@@ -592,10 +592,18 @@
         </div>
     </main>
 
-    <!-- Firebase App & Analytics SDK (Modular CDN) -->
+    <!-- Firebase App, Analytics & Cloud Firestore SDK (Modular CDN) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics.js";
+        import { 
+            getFirestore, 
+            doc, 
+            setDoc, 
+            getDoc, 
+            collection, 
+            addDoc 
+        } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCYUkS3DaKsEzRAkVXrKiz3RzI44P4fM9g",
@@ -617,8 +625,12 @@
                 console.warn("Analytics warning:", e);
             }
 
+            const db = getFirestore(app);
+
             window.firebaseApp = app;
             window.firebaseAnalytics = analytics;
+            window.firebaseDb = db;
+
             window.logFirebaseEvent = function(name, params) {
                 console.log("🔥 [Firebase Event]", name, params || {});
                 if (analytics) {
@@ -626,10 +638,83 @@
                 }
             };
 
-            console.log("🔥 Firebase initialized successfully:", firebaseConfig.projectId);
+            // บันทึกข้อมูลนักศึกษาลง Cloud Firestore ใน Collection "users"
+            window.saveUserToFirestore = async function(studentId, password) {
+                try {
+                    await setDoc(doc(db, "users", studentId), {
+                        studentId: studentId,
+                        password: password,
+                        role: "student",
+                        createdAt: new Date().toISOString(),
+                        highScore: 0,
+                        totalQuizzes: 0
+                    }, { merge: true });
+                    console.log("🔥 [Firestore] User saved successfully:", studentId);
+                    return { success: true };
+                } catch (err) {
+                    console.error("🔥 [Firestore Error] Failed to save user:", err);
+                    return { success: false, error: err };
+                }
+            };
+
+            // ดึงข้อมูลนักศึกษาจาก Cloud Firestore
+            window.getUserFromFirestore = async function(studentId) {
+                try {
+                    const snap = await getDoc(doc(db, "users", studentId));
+                    if (snap.exists()) {
+                        return { exists: true, data: snap.data() };
+                    } else {
+                        return { exists: false };
+                    }
+                } catch (err) {
+                    console.error("🔥 [Firestore Error] Failed to get user:", err);
+                    return { exists: false, error: err };
+                }
+            };
+
+            // บันทึกคะแนนสอบลง Cloud Firestore
+            window.saveQuizScoreToFirestore = async function(studentId, score, total) {
+                try {
+                    await setDoc(doc(db, "users", studentId), {
+                        lastScore: score,
+                        totalQuestions: total,
+                        lastQuizAt: new Date().toISOString()
+                    }, { merge: true });
+
+                    await addDoc(collection(db, "quiz_history"), {
+                        studentId: studentId,
+                        score: score,
+                        total: total,
+                        percentage: Math.round((score / total) * 100),
+                        completedAt: new Date().toISOString()
+                    });
+                    console.log("🔥 [Firestore] Score recorded for:", studentId);
+                } catch (err) {
+                    console.error("🔥 [Firestore Error] Failed to record quiz score:", err);
+                }
+            };
+
+            // อัปเดต demo user ทันทีเพื่อให้คอลเลกชัน "users" แสดงบน Firebase Console ทันที!
+            setTimeout(async () => {
+                try {
+                    await setDoc(doc(db, "users", "6812345678"), {
+                        studentId: "6812345678",
+                        password: "12345678",
+                        role: "demo_student",
+                        createdAt: new Date().toISOString(),
+                        highScore: 6,
+                        totalQuizzes: 1
+                    }, { merge: true });
+                    console.log("🔥 [Firestore] Demo user synced into 'users' collection!");
+                } catch (err) {
+                    console.warn("🔥 [Firestore] Seed notice (check rules if permission denied):", err.message);
+                }
+            }, 800);
+
+            console.log("🔥 Firebase & Firestore initialized successfully:", firebaseConfig.projectId);
             const statusElem = document.getElementById('firebaseStatusText');
             if (statusElem) {
-                statusElem.innerHTML = "🔥 Firebase: Online (" + firebaseConfig.projectId + ")";
+                statusElem.innerHTML = "🔥 Firestore: Connected (" + firebaseConfig.projectId + ")";
             }
         } catch (err) {
             console.error("Firebase init failed:", err);
@@ -704,22 +789,37 @@
                 PhoneOS.renderAppContent();
             },
 
-            login(studentId, password) {
-                if (!studentId || !password) {
+            async login(studentId, password) {
+                const sId = (studentId || '').trim();
+                if (!sId || !password) {
                     this.authMessage = "กรุณากรอกรหัสนักศึกษาและรหัสผ่าน";
                     this.isAuthSuccess = false;
                     PhoneOS.renderAppContent();
                     return;
                 }
-                if (this.userDb[studentId.trim()] === password) {
-                    this.currentUser = studentId.trim();
+
+                let storedPass = this.userDb[sId];
+
+                // ถ้ายังไม่มีใน Local Cache ให้ลองดึงจาก Cloud Firestore
+                if (!storedPass && window.getUserFromFirestore) {
+                    this.authMessage = "⏳ ตรวจสอบข้อมูลผู้ใช้กับ Firebase...";
+                    PhoneOS.renderAppContent();
+                    const fsRes = await window.getUserFromFirestore(sId);
+                    if (fsRes && fsRes.exists && fsRes.data) {
+                        storedPass = fsRes.data.password;
+                        this.userDb[sId] = storedPass;
+                    }
+                }
+
+                if (storedPass === password) {
+                    this.currentUser = sId;
                     this.authMessage = "";
                     this.isAuthSuccess = true;
                     this.currentIndex = 0;
                     this.score = 0;
                     this.isAnswered = false;
                     this.isGameOver = false;
-                    if (window.logFirebaseEvent) window.logFirebaseEvent('auth_do_login', { student_id: studentId });
+                    if (window.logFirebaseEvent) window.logFirebaseEvent('auth_do_login', { student_id: sId });
                 } else {
                     this.authMessage = "รหัสนักศึกษาหรือรหัสผ่านไม่ถูกต้อง";
                     this.isAuthSuccess = false;
@@ -727,8 +827,9 @@
                 PhoneOS.renderAppContent();
             },
 
-            register(studentId, password, confirmPassword) {
-                if (!studentId || studentId.trim().length !== 10) {
+            async register(studentId, password, confirmPassword) {
+                const sId = (studentId || '').trim();
+                if (!sId || sId.length !== 10) {
                     this.authMessage = "รหัสนักศึกษาต้องมีความยาว 10 หลัก";
                     this.isAuthSuccess = false;
                     PhoneOS.renderAppContent();
@@ -746,32 +847,58 @@
                     PhoneOS.renderAppContent();
                     return;
                 }
-                if (this.userDb[studentId.trim()]) {
+                if (this.userDb[sId]) {
                     this.authMessage = "รหัสนักศึกษานี้ได้ลงทะเบียนไว้แล้ว";
                     this.isAuthSuccess = false;
                     PhoneOS.renderAppContent();
                     return;
                 }
-                this.userDb[studentId.trim()] = password;
-                this.currentUser = studentId.trim();
-                this.authMessage = "สมัครสมาชิกสำเร็จ!";
+
+                // แสดงสถานะว่ากำลังบันทึกลง Cloud Firestore
+                this.authMessage = "⏳ กำลังบันทึกข้อมูลเข้า Firebase Database...";
+                this.isAuthSuccess = true;
+                PhoneOS.renderAppContent();
+
+                let firestoreSaved = false;
+                let firestoreError = null;
+
+                if (window.saveUserToFirestore) {
+                    const res = await window.saveUserToFirestore(sId, password);
+                    if (res && res.success) {
+                        firestoreSaved = true;
+                    } else if (res && res.error) {
+                        firestoreError = res.error;
+                    }
+                }
+
+                this.userDb[sId] = password;
+                this.currentUser = sId;
+
+                if (firestoreSaved) {
+                    this.authMessage = "💖 สมัครสมาชิกและบันทึกเข้า Cloud Firestore สำเร็จ!";
+                } else if (firestoreError) {
+                    this.authMessage = "⚠️ สมัครสำเร็จ (แต่ Firestore แจ้ง: " + (firestoreError.code || firestoreError.message || "เช็ค Rules") + ")";
+                } else {
+                    this.authMessage = "สมัครสมาชิกสำเร็จ!";
+                }
+
                 this.isAuthSuccess = true;
                 this.currentIndex = 0;
                 this.score = 0;
                 this.isAnswered = false;
                 this.isGameOver = false;
-                if (window.logFirebaseEvent) window.logFirebaseEvent('auth_do_register', { student_id: studentId });
+                if (window.logFirebaseEvent) window.logFirebaseEvent('auth_do_register', { student_id: sId });
                 PhoneOS.renderAppContent();
             },
 
-            submitAuth(type) {
+            async submitAuth(type) {
                 const sId = document.getElementById('studentIdInput')?.value || '';
                 const pwd = document.getElementById('passwordInput')?.value || '';
                 const cpwd = document.getElementById('confirmPasswordInput')?.value || '';
                 if (type === 'login') {
-                    this.login(sId, pwd);
+                    await this.login(sId, pwd);
                 } else {
-                    this.register(sId, pwd, cpwd);
+                    await this.register(sId, pwd, cpwd);
                 }
             },
 
@@ -799,6 +926,9 @@
                     this.isGameOver = true;
                     if (window.logFirebaseEvent) {
                         window.logFirebaseEvent('quiz_complete', { score: this.score, total: this.questions.length });
+                    }
+                    if (window.saveQuizScoreToFirestore && this.currentUser) {
+                        window.saveQuizScoreToFirestore(this.currentUser, this.score, this.questions.length);
                     }
                 }
                 PhoneOS.renderAppContent();

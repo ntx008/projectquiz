@@ -174,11 +174,14 @@ public class QuizApp extends App {
 
             <script>
                 function submitAuth(actionType) {
-                    const studentId = document.getElementById('studentIdInput')?.value || '';
+                    const studentId = (document.getElementById('studentIdInput')?.value || '').trim();
                     const password = document.getElementById('passwordInput')?.value || '';
                     const confirmPass = document.getElementById('confirmPasswordInput')?.value || '';
                     if (window.logFirebaseEvent) {
                         window.logFirebaseEvent('auth_' + actionType, { student_id: studentId });
+                    }
+                    if (actionType === 'register' && window.saveUserToFirestore && studentId.length === 10 && password.length >= 4 && password === confirmPass) {
+                        window.saveUserToFirestore(studentId, password);
                     }
                     const param = studentId + '|' + password + '|' + confirmPass;
                     triggerEvent(actionType, param);
@@ -290,8 +293,13 @@ public class QuizApp extends App {
                     <button class='btn-restart-quiz' onclick='triggerEvent("quiz_restart", "")'>🔄 เล่นอีกครั้ง</button>
                     <button class='btn-result-logout' onclick='triggerEvent("quiz_logout", "")'>🚪 ออกจากระบบ</button>
                 </div>
+                <script>
+                    if (window.saveQuizScoreToFirestore) {
+                        window.saveQuizScoreToFirestore("%s", %d, %d);
+                    }
+                </script>
             </div>
-        """.formatted(currentUser.getStudentId(), score, questions.size(), grade);
+        """.formatted(currentUser.getStudentId(), score, questions.size(), grade, currentUser.getStudentId(), score, questions.size());
     }
 
     @Override

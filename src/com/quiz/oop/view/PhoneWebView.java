@@ -705,10 +705,18 @@ public class PhoneWebView {
                     </div>
                 </main>
 
-                <!-- Firebase App & Analytics SDK (Modular CDN) -->
+                <!-- Firebase App, Analytics & Cloud Firestore SDK (Modular CDN) -->
                 <script type="module">
                     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
                     import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics.js";
+                    import { 
+                        getFirestore, 
+                        doc, 
+                        setDoc, 
+                        getDoc, 
+                        collection, 
+                        addDoc 
+                    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
                     // Your web app's Firebase configuration
                     const firebaseConfig = {
@@ -731,8 +739,12 @@ public class PhoneWebView {
                             console.warn("Firebase Analytics notice:", aErr);
                         }
 
+                        const db = getFirestore(app);
+
                         window.firebaseApp = app;
                         window.firebaseAnalytics = analytics;
+                        window.firebaseDb = db;
+
                         window.logFirebaseEvent = function(eventName, params) {
                             console.log("🔥 [Firebase LogEvent]:", eventName, params || {});
                             if (analytics) {
@@ -740,10 +752,68 @@ public class PhoneWebView {
                             }
                         };
 
+                        // บันทึกผู้ใช้ลง Firestore
+                        window.saveUserToFirestore = async function(studentId, password) {
+                            try {
+                                await setDoc(doc(db, "users", studentId), {
+                                    studentId: studentId,
+                                    password: password,
+                                    role: "student",
+                                    createdAt: new Date().toISOString(),
+                                    highScore: 0,
+                                    totalQuizzes: 0
+                                }, { merge: true });
+                                console.log("🔥 [Firestore] User saved successfully:", studentId);
+                                return { success: true };
+                            } catch (err) {
+                                console.error("🔥 [Firestore Error] Failed to save user:", err);
+                                return { success: false, error: err };
+                            }
+                        };
+
+                        // บันทึกคะแนนลง Firestore
+                        window.saveQuizScoreToFirestore = async function(studentId, score, total) {
+                            try {
+                                await setDoc(doc(db, "users", studentId), {
+                                    lastScore: score,
+                                    totalQuestions: total,
+                                    lastQuizAt: new Date().toISOString()
+                                }, { merge: true });
+
+                                await addDoc(collection(db, "quiz_history"), {
+                                    studentId: studentId,
+                                    score: score,
+                                    total: total,
+                                    percentage: Math.round((score / total) * 100),
+                                    completedAt: new Date().toISOString()
+                                });
+                                console.log("🔥 [Firestore] Score recorded for:", studentId);
+                            } catch (err) {
+                                console.error("🔥 [Firestore Error] Failed to record quiz score:", err);
+                            }
+                        };
+
+                        // ซิงก์ demo user เข้า Firestore
+                        setTimeout(async () => {
+                            try {
+                                await setDoc(doc(db, "users", "6812345678"), {
+                                    studentId: "6812345678",
+                                    password: "12345678",
+                                    role: "demo_student",
+                                    createdAt: new Date().toISOString(),
+                                    highScore: 6,
+                                    totalQuizzes: 1
+                                }, { merge: true });
+                                console.log("🔥 [Firestore] Demo user synced into 'users' collection!");
+                            } catch (err) {
+                                console.warn("Firestore seed note:", err.message);
+                            }
+                        }, 800);
+
                         console.log("🔥 Firebase initialized successfully:", firebaseConfig.projectId);
                         const statusElem = document.getElementById('firebaseStatusText');
                         if (statusElem) {
-                            statusElem.innerHTML = "🔥 Firebase: Online (" + firebaseConfig.projectId + ")";
+                            statusElem.innerHTML = "🔥 Firestore: Connected (" + firebaseConfig.projectId + ")";
                         }
                     } catch (err) {
                         console.error("Firebase init failed:", err);
