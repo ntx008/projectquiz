@@ -796,6 +796,36 @@
                 }
             };
 
+            // รีเซ็ตคะแนนผู้เล่นรายบุคคล
+            window.resetSingleUserInFirestore = async function(studentId) {
+                try {
+                    await setDoc(doc(db, "users", studentId), {
+                        totalScore: 0,
+                        highScore: 0,
+                        quizzesPlayed: 0,
+                        lastScore: 0
+                    }, { merge: true });
+
+                    // ลบประวัติ quiz_history ของผู้เล่นคนนี้
+                    try {
+                        const histSnap = await getDocs(collection(db, "quiz_history"));
+                        const toDelete = [];
+                        histSnap.forEach(d => {
+                            if (d.data().studentId === studentId) {
+                                toDelete.push(deleteDoc(doc(db, "quiz_history", d.id)));
+                            }
+                        });
+                        await Promise.all(toDelete);
+                    } catch (e) {}
+
+                    console.log("🔥 [Firestore] User score reset:", studentId);
+                    return { success: true };
+                } catch (err) {
+                    console.error("🔥 [Firestore Error] Failed to reset user score:", err);
+                    return { success: false, error: err };
+                }
+            };
+
             // ดึงข้อสอบทั้งหมดที่ Admin เพิ่มจาก Firestore
             window.loadCustomQuestionsFromFirestore = async function() {
                 try {
@@ -970,6 +1000,26 @@
                             };
                         }
                     }
+
+                    // คงสถานะการเข้าสู่ระบบเมื่อผู้ใช้รีเฟรชหน้าเว็บ (Persistent Login Session)
+                    const savedUser = localStorage.getItem('cpe_quiz_current_user');
+                    const savedRole = localStorage.getItem('cpe_quiz_current_role');
+                    if (savedUser && savedUser.trim().length === 10) {
+                        const sId = savedUser.trim();
+                        this.currentUser = sId;
+                        this.currentRole = (sId === this.ADMIN_ID) ? 'admin' : (savedRole || 'player');
+                        this.screenState = "lobby";
+
+                        if (!this.userDb[sId]) {
+                            this.userDb[sId] = {
+                                password: localStorage.getItem('cpe_quiz_cached_pass') || "",
+                                role: this.currentRole,
+                                totalScore: 0,
+                                highScore: 0,
+                                quizzesPlayed: 0
+                            };
+                        }
+                    }
                 } catch (e) {}
             },
 
@@ -1019,6 +1069,14 @@
                     this.authMessage = "";
                     this.isAuthSuccess = true;
                     this.screenState = "lobby";
+
+                    // บันทึก Session ลง LocalStorage เพื่อคงสถานะล็อกอินไว้เมื่อรีเฟรช
+                    try {
+                        localStorage.setItem('cpe_quiz_current_user', sId);
+                        localStorage.setItem('cpe_quiz_current_role', this.currentRole);
+                        localStorage.setItem('cpe_quiz_cached_pass', password);
+                    } catch (e) {}
+
                     if (window.logFirebaseEvent) window.logFirebaseEvent('auth_do_login', { student_id: sId, role: this.currentRole });
                 } else {
                     this.authMessage = "รหัสนักศึกษาหรือรหัสผ่านไม่ถูกต้อง";
@@ -1080,6 +1138,13 @@
                 };
                 this.currentUser = sId;
                 this.currentRole = role;
+
+                // บันทึก Session ลง LocalStorage เพื่อคงสถานะล็อกอินไว้เมื่อรีเฟรช
+                try {
+                    localStorage.setItem('cpe_quiz_current_user', sId);
+                    localStorage.setItem('cpe_quiz_current_role', role);
+                    localStorage.setItem('cpe_quiz_cached_pass', password);
+                } catch (e) {}
 
                 this.isAuthSuccess = true;
                 this.screenState = "lobby";
@@ -1144,6 +1209,44 @@
                     PhoneOS.renderAppContent();
                 }
             },
+
+            async adminResetUserScore(studentId) {
+                if (!this.isAdmin()) return;
+                if (!confirm(`⚠️ รีเซ็ตคะแนนของ "${studentId}" ใช่หรือไม่?\nคะแนนสะสมทั้งหมดของผู้เล่นคนนี้จะถูกรีเซ็ตเป็น 0`)) {
+                    return;
+                }
+
+                // รีเซ็ตใน Local Memory
+                if (this.userDb[studentId] && typeof this.userDb[studentId] === 'object') {
+                    this.userDb[studentId].totalScore = 0;
+                    this.userDb[studentId].highScore = 0;
+                    this.userDb[studentId].quizzesPlayed = 0;
+                    this.userDb[studentId].lastScore = 0;
+                }
+
+                // รีเซ็ตใน cachedLeaderboard ด้วย
+                if (this.cachedLeaderboard) {
+                    this.cachedLeaderboard = this.cachedLeaderboard.map(u =>
+                        u.studentId === studentId
+                            ? { ...u, totalScore: 0, highScore: 0, quizzesPlayed: 0 }
+                            : u
+                    );
+                }
+
+                // รีเซ็ตใน Cloud Firestore
+                if (window.resetSingleUserInFirestore) {
+                    await window.resetSingleUserInFirestore(studentId);
+                }
+
+                this.adminMessage = `รีเซ็ตคะแนนของ "${studentId}" เป็น 0 สำเร็จแล้ว!`;
+                if (this.screenState === 'leaderboard') {
+                    await this.openLeaderboard();
+                } else {
+                    PhoneOS.renderAppContent();
+                }
+            },
+
+
 
             async openLobby() {
                 this.screenState = "lobby";
@@ -1330,6 +1433,11 @@
             },
 
             logout() {
+                try {
+                    localStorage.removeItem('cpe_quiz_current_user');
+                    localStorage.removeItem('cpe_quiz_current_role');
+                    localStorage.removeItem('cpe_quiz_cached_pass');
+                } catch (e) {}
                 this.currentUser = null;
                 this.currentRole = "player";
                 this.authMessage = "";
@@ -1664,6 +1772,7 @@
                 }
 
                 let rowsHtml = "";
+                const isAdmin = this.isAdmin();
                 list.forEach((u, idx) => {
                     const rank = idx + 1;
                     const medal = rank === 1 ? "🥇 1" : (rank === 2 ? "🥈 2" : (rank === 3 ? "🥉 3" : " " + rank));
@@ -1671,12 +1780,24 @@
                     const rowBg = isMe ? "background:rgba(255,42,133,0.18); border-left:3px solid #ff2a85;" : "background:rgba(255,255,255,0.03);";
                     const roleTag = (u.role === 'admin' || u.studentId === this.ADMIN_ID) ? "<span style='color:#f59e0b; font-size:10px;'>👑</span>" : "";
 
+                    const resetBtn = (isAdmin && u.studentId !== this.ADMIN_ID)
+                        ? `<td style='padding:6px; text-align:center;'>
+                            <button onclick='QuizEngine.adminResetUserScore("${u.studentId}")'
+                                style='background:#3f0c18; border:1px solid #f43f5e; color:#fecdd3; padding:4px 7px; border-radius:5px; font-size:10px; font-weight:700; cursor:pointer; white-space:nowrap;'
+                                onmouseover='this.style.background="#e11d48"' onmouseout='this.style.background="#3f0c18"'
+                                title='รีเซ็ตคะแนนผู้เล่นคนนี้'>
+                                🔄 รีเซ็ต
+                            </button>
+                          </td>`
+                        : (isAdmin ? `<td style='padding:6px; text-align:center; color:#475569; font-size:10px;'>-</td>` : "");
+
                     rowsHtml += `
                         <tr style='${rowBg} padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05);'>
                             <td style='padding:8px; font-weight:800; color:${rank === 1 ? "#fbbf24" : (rank === 2 ? "#e2e8f0" : (rank === 3 ? "#f97316" : "#94a3b8"))};'>${medal}</td>
                             <td style='padding:8px; font-weight:600; color:#fdf2f8;'>${u.studentId} ${roleTag}</td>
                             <td style='padding:8px; text-align:center; font-weight:800; color:#ff75b5;'>${u.totalScore}</td>
                             <td style='padding:8px; text-align:center; color:#94a3b8; font-size:11px;'>${u.quizzesPlayed || 0} รอบ</td>
+                            ${resetBtn}
                         </tr>
                     `;
                 });
@@ -1704,7 +1825,9 @@
                                         <th style='padding:8px;'>รหัสนักศึกษา</th>
                                         <th style='padding:8px; text-align:center;'>คะแนนรวม</th>
                                         <th style='padding:8px; text-align:center;'>เล่นแล้ว</th>
+                                        ${isAdmin ? `<th style='padding:8px; text-align:center;'>จัดการ</th>` : ""}
                                     </tr>
+
                                 </thead>
                                 <tbody>
                                     ${rowsHtml}

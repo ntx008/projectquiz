@@ -469,6 +469,8 @@ public class QuizApp extends App {
         List<User> sortedUsers = new ArrayList<>(userDatabase.values());
         sortedUsers.sort((a, b) -> Integer.compare(b.getTotalScore(), a.getTotalScore()));
 
+        boolean isAdminView = (currentUser != null && currentUser.isAdmin());
+
         StringBuilder rowsHtml = new StringBuilder();
         int rank = 1;
         for (User u : sortedUsers) {
@@ -482,15 +484,34 @@ public class QuizApp extends App {
             String rowBg = isMe ? "background:rgba(255,42,133,0.18); border-left:3px solid #ff2a85;" : "background:rgba(255,255,255,0.03);";
             String roleTag = u.isAdmin() ? "<span style='color:#f59e0b; font-size:10px;'>👑</span>" : "";
 
+            String resetCell = "";
+            if (isAdminView) {
+                if (!u.isAdmin()) {
+                    resetCell = String.format("""
+                        <td style='padding:6px; text-align:center;'>
+                            <button onclick='if(confirm("⚠️ รีเซ็ตคะแนนของ %s ใช่หรือไม่?")){ if(window.resetSingleUserInFirestore) window.resetSingleUserInFirestore("%s"); triggerEvent("quiz_reset_user_score", "%s"); }'
+                                style='background:#3f0c18; border:1px solid #f43f5e; color:#fecdd3; padding:4px 7px; border-radius:5px; font-size:10px; font-weight:700; cursor:pointer; white-space:nowrap;'
+                                onmouseover='this.style.background="#e11d48"' onmouseout='this.style.background="#3f0c18"'
+                                title='รีเซ็ตคะแนนผู้เล่นคนนี้'>
+                                🔄 รีเซ็ต
+                            </button>
+                        </td>
+                    """, u.getStudentId(), u.getStudentId(), u.getStudentId());
+                } else {
+                    resetCell = "<td style='padding:6px; text-align:center; color:#475569; font-size:10px;'>-</td>";
+                }
+            }
+
             rowsHtml.append(String.format("""
                 <tr style='%s padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05);'>
                     <td style='padding:8px; font-weight:800; color:%s;'>%s</td>
                     <td style='padding:8px; font-weight:600; color:#fdf2f8;'>%s %s</td>
                     <td style='padding:8px; text-align:center; font-weight:800; color:#ff75b5;'>%d</td>
                     <td style='padding:8px; text-align:center; color:#94a3b8; font-size:11px;'>%d รอบ</td>
+                    %s
                 </tr>
             """, rowBg, (rank == 1 ? "#fbbf24" : (rank == 2 ? "#e2e8f0" : (rank == 3 ? "#f97316" : "#94a3b8"))),
-            medal, u.getStudentId(), roleTag, u.getTotalScore(), u.getQuizzesPlayed()));
+            medal, u.getStudentId(), roleTag, u.getTotalScore(), u.getQuizzesPlayed(), resetCell));
             rank++;
         }
 
@@ -499,11 +520,13 @@ public class QuizApp extends App {
             alertHtml = "<div class='portal-alert-box' style='color:#4ade80; border-color:#22c55e66; margin-bottom:10px;'>✅ " + escapeHtml(adminMessage) + "</div>";
         }
 
-        String resetBtnHtml = (currentUser != null && currentUser.isAdmin()) ? """
+        String resetBtnHtml = isAdminView ? """
             <button class='btn-portal-action' style='background:linear-gradient(135deg, #ef4444, #b91c1c); margin-bottom:10px;' onclick='if(confirm("⚠️ ยืนยันการรีเซ็ตคะแนนผู้เล่นทุกคนบนตารางแรงค์เป็น 0 ใช่หรือไม่?")){ if(window.resetLeaderboardInFirestore) window.resetLeaderboardInFirestore(); triggerEvent("quiz_reset_leaderboard", ""); }'>
                 🔄 รีเซ็ตคะแนนตารางแรงค์ทั้งหมด (Reset Leaderboard)
             </button>
-        """ : "";
+            """ : "";
+
+        String manageHeader = isAdminView ? "<th style='padding:8px; text-align:center;'>จัดการ</th>" : "";
 
         return """
             <div class='custom-portal-card' style='padding: 16px 14px;'>
@@ -528,6 +551,7 @@ public class QuizApp extends App {
                                 <th style='padding:8px;'>รหัสนักศึกษา</th>
                                 <th style='padding:8px; text-align:center;'>คะแนนรวม</th>
                                 <th style='padding:8px; text-align:center;'>เล่นแล้ว</th>
+                                %s
                             </tr>
                         </thead>
                         <tbody>
@@ -542,7 +566,7 @@ public class QuizApp extends App {
                     🏠 กลับสู่หน้าเลือกโหมด (Lobby)
                 </button>
             </div>
-        """.formatted(alertHtml, rowsHtml.toString(), resetBtnHtml);
+        """.formatted(alertHtml, manageHeader, rowsHtml.toString(), resetBtnHtml);
     }
 
     private String escapeHtml(String text) {
@@ -917,6 +941,20 @@ public class QuizApp extends App {
             u.resetScores();
         }
         this.adminMessage = "รีเซ็ตคะแนนตารางจัดอันดับทั้งหมดเป็น 0 สำเร็จเรียบร้อยแล้ว!";
+        this.screenState = ScreenState.LEADERBOARD;
+    }
+
+    public void adminResetUserScore(String studentId) {
+        if (currentUser == null || !currentUser.isAdmin()) return;
+        if (studentId == null || studentId.isBlank()) return;
+        User target = userDatabase.get(studentId);
+        if (target != null) {
+            target.resetScores();
+            this.adminMessage = "รีเซ็ตคะแนนของ \"" + studentId + "\" เป็น 0 สำเร็จแล้ว!";
+        } else {
+            this.adminMessage = "ไม่พบผู้เล่นรหัส: " + studentId;
+        }
+        this.screenState = ScreenState.LEADERBOARD;
     }
 
     public void answerQuestion(int choiceIndex) {

@@ -200,6 +200,16 @@ public class PhoneController {
                     return true;
                 }
             }
+            case "quiz_reset_user_score" -> {
+                App app = phone.getCurrentApp();
+                if (app instanceof com.quiz.oop.model.app.QuizApp quiz) {
+                    if (param != null && !param.isBlank()) {
+                        quiz.adminResetUserScore(param.trim());
+                        phone.addNotification("Admin รีเซ็ตคะแนนของ " + param.trim() + " สำเร็จ");
+                        return true;
+                    }
+                }
+            }
             default -> {
                 return false;
             }
