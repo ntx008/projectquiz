@@ -1048,6 +1048,8 @@
             isAnswered: false,
             lastChoice: -1,
             selectedChoice: -1,    // ตัวเลือกที่กดแล้วแต่ยังไม่ยืนยัน
+            isReplay: false,       // true = เล่นซ้ำ ไม่นับคะแนน
+            scoredDifficulties: {}, // track difficulty ที่นับคะแนนไปแล้วใน session นี้
             cachedLeaderboard: null,
 
             initCache() {
@@ -1255,6 +1257,8 @@
                 this.isAnswered = false;
                 this.lastChoice = -1;
                 this.selectedChoice = -1;
+                // ตรวจว่าเป็นการเล่นซ้ำ (ระดับนี้เคยนับคะแนนไปแล้ว)
+                this.isReplay = !!this.scoredDifficulties[this.currentDifficulty];
                 this.screenState = "game";
                 if (window.logFirebaseEvent) {
                     window.logFirebaseEvent('quiz_select_difficulty', { difficulty: this.currentDifficulty });
@@ -1494,28 +1498,33 @@
                 if (this.currentIndex + 1 < this.activeQuestions.length) {
                     this.currentIndex++;
                 } else {
-                    // จบชุดข้อสอบ -> เก็บสถิติสะสม
-                    if (this.currentUser) {
-                        const u = this.userDb[this.currentUser];
-                        if (u && typeof u === 'object') {
-                            u.totalScore = (u.totalScore || 0) + this.score;
-                            u.highScore = Math.max(u.highScore || 0, this.score);
-                            u.quizzesPlayed = (u.quizzesPlayed || 0) + 1;
+                    // จบชุดข้อสอบ
+                    if (!this.isReplay) {
+                        // รอบแรก: บันทึกคะแนนจริง
+                        if (this.currentUser) {
+                            const u = this.userDb[this.currentUser];
+                            if (u && typeof u === 'object') {
+                                u.totalScore = (u.totalScore || 0) + this.score;
+                                u.highScore = Math.max(u.highScore || 0, this.score);
+                                u.quizzesPlayed = (u.quizzesPlayed || 0) + 1;
+                            }
                         }
+                        if (window.saveQuizScoreToFirestore && this.currentUser) {
+                            await window.saveQuizScoreToFirestore(this.currentUser, this.score, this.activeQuestions.length);
+                        }
+                        // ทำเครื่องหมายว่า difficulty นี้นับคะแนนไปแล้ว
+                        this.scoredDifficulties[this.currentDifficulty] = true;
                     }
-
-                    if (window.saveQuizScoreToFirestore && this.currentUser) {
-                        await window.saveQuizScoreToFirestore(this.currentUser, this.score, this.activeQuestions.length);
-                    }
+                    // ถ้า isReplay = true ไม่บันทึกคะแนนใดๆ (โหมดฝึกซ้อม)
 
                     if (window.logFirebaseEvent) {
                         window.logFirebaseEvent('quiz_complete', {
                             difficulty: this.currentDifficulty,
                             score: this.score,
-                            total: this.activeQuestions.length
+                            total: this.activeQuestions.length,
+                            is_replay: this.isReplay
                         });
                     }
-
                     this.screenState = "result";
                 }
                 PhoneOS.renderAppContent();
@@ -1538,6 +1547,8 @@
                 this.screenState = "auth";
                 this.score = 0;
                 this.currentIndex = 0;
+                this.isReplay = false;
+                this.scoredDifficulties = {};   // reset เมื่อ logout
                 PhoneOS.renderAppContent();
             },
 
@@ -2006,27 +2017,49 @@
                 if (this.score <= 1) grade = "🥉 ต้องฝึกคิดนอกกรอบอีกนิดนะ!";
                 else if (this.score <= 2) grade = "🥈 มีไหวพริบยอดเยี่ยม!";
 
-                const totalPts = (this.userDb[this.currentUser] && this.userDb[this.currentUser].totalScore) || this.score;
+                const totalPts = (this.userDb[this.currentUser] && this.userDb[this.currentUser].totalScore) || 0;
+
+                const replayBanner = this.isReplay ? `
+                    <div style='
+                        background: rgba(245,158,11,0.12);
+                        border: 1px solid rgba(245,158,11,0.4);
+                        border-radius: 10px;
+                        padding: 10px 14px;
+                        margin-bottom: 12px;
+                        text-align: center;
+                    '>
+                        <div style='font-size:16px; margin-bottom:4px;'>🔁 โหมดฝึกซ้อม</div>
+                        <div style='font-size:12px; color:#fbbf24; font-weight:600;'>คุณเล่นระดับนี้ซ้ำ — คะแนนจะไม่ถูกนับเพิ่มในตารางแรงค์</div>
+                    </div>
+                ` : "";
+
+                const scoreLabel = this.isReplay
+                    ? `<div class='result-score-total'>เต็ม ${this.activeQuestions.length} คะแนน (ฝึกซ้อม - ไม่นับคะแนน)</div>`
+                    : `<div class='result-score-total'>เต็ม ${this.activeQuestions.length} คะแนน (+${this.score} แต้ม)</div>`;
+
+                const totalLine = this.isReplay
+                    ? `<div style='margin-bottom:14px; font-size:12px; color:#94a3b8;'>คะแนนสะสมรวม: <strong style='color:#ff75b5;'>${totalPts}</strong> คะแนน (ไม่เปลี่ยนแปลง)</div>`
+                    : `<div style='margin-bottom:14px; font-size:12px; color:#ff75b5;'>คะแนนสะสมรวมทั้งหมด: <strong>${totalPts}</strong> คะแนน</div>`;
 
                 return `
                     <div class='quiz-result-container'>
-                        <div style='font-size: 46px; margin-bottom: 8px;'>🏆</div>
-                        <h2 style='color:#ff75b5; font-size:18px;'>ผลการทดสอบเชาว์ปัญญา</h2>
+                        <div style='font-size: 46px; margin-bottom: 8px;'>${this.isReplay ? "🔁" : "🏆"}</div>
+                        <h2 style='color:#ff75b5; font-size:18px;'>${this.isReplay ? "ผลการฝึกซ้อม" : "ผลการทดสอบเชาว์ปัญญา"}</h2>
                         <div class='result-student-id'>รหัสนักศึกษา: ${this.currentUser}</div>
-                        
+
+                        ${replayBanner}
+
                         <div class='result-score-circle'>
                             <div class='result-score-number'>${this.score}</div>
-                            <div class='result-score-total'>เต็ม ${this.activeQuestions.length} คะแนน (+${this.score} แต้ม)</div>
+                            ${scoreLabel}
                         </div>
 
                         <div class='result-grade-badge'>${grade}</div>
 
-                        <div style='margin-bottom: 14px; font-size:12px; color:#ff75b5;'>
-                            คะแนนสะสมรวมทั้งหมด: <strong>${totalPts}</strong> คะแนน
-                        </div>
+                        ${totalLine}
 
                         <div class='result-actions' style='display:flex; flex-direction:column; gap:8px;'>
-                            <button class='btn-restart-quiz' onclick='QuizEngine.restart()'>🔄 เล่นระดับนี้อีกครั้ง</button>
+                            <button class='btn-restart-quiz' onclick='QuizEngine.restart()'>🔄 เล่นระดับนี้อีกครั้ง (ฝึกซ้อม)</button>
                             <button class='btn-portal-action' style='background:linear-gradient(135deg, #9333ea, #c026d3);' onclick='QuizEngine.openLeaderboard()'>🏆 ดูตารางแรงค์ (Leaderboard)</button>
                             <button class='btn-result-logout' style='background:#1e0d29; border:1px solid #4a154b;' onclick='QuizEngine.openLobby()'>🏠 กลับหน้าหลัก (Lobby)</button>
                         </div>
