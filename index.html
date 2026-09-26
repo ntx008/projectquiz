@@ -1586,30 +1586,26 @@
                 return `
                     <div class='custom-portal-card' style='padding:0; overflow:hidden; border-radius:16px;'>
 
-                        <!-- Hero Banner (ไม่มี stats แล้ว) -->
+                        <!-- Hero Cover Image -->
                         <div style='
-                            background: linear-gradient(135deg, #2d0036 0%, #1a0028 40%, #0d001a 100%);
-                            padding: 28px 20px 20px;
-                            text-align: center;
                             position: relative;
+                            text-align: center;
+                            background: #0d001a;
                             border-bottom: 1px solid rgba(255,42,133,0.3);
+                            overflow: hidden;
                         '>
-                            <div style='font-size: 52px; margin-bottom: 8px; line-height:1;'>🧠</div>
-                            <h1 style='
-                                font-size: 22px;
-                                font-weight: 900;
-                                color: #fff;
-                                margin: 0 0 4px;
-                                letter-spacing: 1px;
-                                text-shadow: 0 0 20px rgba(255,42,133,0.8);
-                            '>IQ MASTER QUIZ</h1>
-                            <div style='
-                                font-size: 12px;
-                                color: #ff75b5;
-                                font-weight: 600;
-                                letter-spacing: 2px;
-                                text-transform: uppercase;
-                            '>เกมตอบปัญหาเชาว์ปัญญา 3 ระดับ</div>
+                            <img src='/cover.jpg' alt='ทายปัญหาเชาว์ Riddle Quest' style='
+                                width: 100%;
+                                display: block;
+                                object-fit: cover;
+                                max-height: 200px;
+                            ' onerror='this.style.display="none"; this.nextElementSibling.style.display="block";'>
+                            <!-- Fallback ถ้ารูปโหลดไม่ได้ -->
+                            <div style='display:none; padding:28px 20px 20px; background:linear-gradient(135deg,#2d0036,#0d001a);'>
+                                <div style='font-size:52px; margin-bottom:8px;'>🧠</div>
+                                <h1 style='font-size:22px; font-weight:900; color:#fff; margin:0 0 4px; text-shadow:0 0 20px rgba(255,42,133,0.8);'>ทายปัญหาเชาว์</h1>
+                                <div style='font-size:12px; color:#ff75b5; font-weight:600; letter-spacing:2px;'>Riddle Quest</div>
+                            </div>
                         </div>
 
                         <!-- Player Info -->
