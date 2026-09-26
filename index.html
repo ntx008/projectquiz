@@ -1455,10 +1455,11 @@
                 PhoneOS.renderAppContent();
             },
 
-            // Step 1: ผู้เล่นกดเลือกตัวเลือก (แค่ highlight ยังไม่เฉลย)
+            // Step 1: ผู้เล่นกดเลือกตัวเลือก — ล็อคทันที ไม่ให้เปลี่ยน
             selectChoice(idx) {
                 if (this.isAdmin()) return;
                 if (this.isAnswered || !this.activeQuestions.length) return;
+                if (this.selectedChoice >= 0) return; // ล็อคแล้ว ห้ามเปลี่ยนตัวเลือก
                 this.selectedChoice = idx;
                 PhoneOS.renderAppContent();
             },
@@ -1903,16 +1904,28 @@
                 q.c.forEach((choice, i) => {
                     let cls = "quiz-choice-btn";
                     let extraStyle = "";
+                    let disabledAttr = "";
+
                     if (this.isAnswered) {
                         // แสดงผลหลังยืนยันแล้ว
                         if (i === q.a) cls += " choice-correct";
                         else if (i === this.lastChoice) cls += " choice-wrong";
-                    } else if (i === this.selectedChoice) {
-                        // ผู้เล่นเลือกแล้วแต่ยังไม่กดยืนยัน → highlight สีฟ้า
-                        extraStyle = "border: 2px solid #38bdf8; background: rgba(56,189,248,0.15); color:#e0f2fe;";
+                        disabledAttr = "disabled";
+                    } else if (this.selectedChoice >= 0) {
+                        // เลือกตัวเลือกแล้ว (ล็อค) — ห้ามคลิกทุกปุ่ม
+                        disabledAttr = "disabled";
+                        if (i === this.selectedChoice) {
+                            // ตัวที่เลือก → highlight สีฟ้า
+                            extraStyle = "border: 2px solid #38bdf8; background: rgba(56,189,248,0.15); color:#e0f2fe;";
+                        } else {
+                            // ตัวอื่น → หรี่ลง (dim)
+                            extraStyle = "opacity:0.35; cursor:not-allowed;";
+                        }
                     }
-                    const clickAttr = !this.isAnswered ? `onclick='QuizEngine.selectChoice(${i})'` : "";
-                    choicesHtml += `<button class='${cls}' style='${extraStyle}' ${clickAttr}>${choice}</button>`;
+                    // ยังไม่เลือกเลย → ทุกปุ่มกดได้
+                    const clickAttr = (!this.isAnswered && this.selectedChoice < 0)
+                        ? `onclick='QuizEngine.selectChoice(${i})'` : "";
+                    choicesHtml += `<button class='${cls}' style='${extraStyle}' ${clickAttr} ${disabledAttr}>${choice}</button>`;
                 });
 
                 let explanationHtml = "";
@@ -1930,9 +1943,13 @@
                     `;
                     nextBtnHtml = `<button class='btn-next-question' onclick='QuizEngine.next()'>ข้อถัดไป ➔</button>`;
                 } else if (this.selectedChoice >= 0) {
-                    // เลือกแล้วแต่ยังไม่กดยืนยัน
+                    // เลือกแล้ว รอยืนยัน — ปุ่ม disable ตัวเองทันทีเมื่อกด (ป้องกัน double-click)
                     confirmBtnHtml = `
-                        <button onclick='QuizEngine.answer()' style='
+                        <button id='confirmBtn' onclick='
+                            var btn = document.getElementById("confirmBtn");
+                            if(btn){ btn.disabled=true; btn.style.opacity="0.6"; btn.innerText="⏳ กำลังบันทึก..."; }
+                            QuizEngine.answer();
+                        ' style='
                             width:100%; padding:13px; margin-top:10px;
                             background:linear-gradient(135deg, #0ea5e9, #0284c7);
                             color:#fff; border:none; border-radius:12px;
