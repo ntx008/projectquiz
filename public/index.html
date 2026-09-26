@@ -1798,7 +1798,7 @@
                             <button class='btn-quiz-logout' onclick='QuizEngine.logout()' title='ออกจากระบบ'>🚪 ออก</button>
                         </div>
 
-                        <!-- User stats banner / Admin banner -->
+                        <!-- Admin banner only -->
                         ${this.isAdmin() ? `
                             <div style='background:rgba(245, 158, 11, 0.12); border:1px solid rgba(245, 158, 11, 0.4); border-radius:12px; padding:10px 14px; margin-bottom:14px;'>
                                 <div style='font-size:12px; font-weight:700; color:#fbbf24; display:flex; align-items:center; gap:6px; margin-bottom:4px;'>
@@ -1809,18 +1809,7 @@
                                     <span style='color:#f87171; font-weight:700;'>🚫 บัญชีแอดมินไม่มีสิทธิ์ร่วมตอบคำถาม</span>
                                 </div>
                             </div>
-                        ` : `
-                            <div style='background:rgba(255,42,133,0.1); border:1px solid rgba(255,42,133,0.3); border-radius:12px; padding:10px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;'>
-                                <div>
-                                    <div style='font-size:11px; color:#ff75b5; text-transform:uppercase;'>คะแนนสะสมรวม</div>
-                                    <div style='font-size:20px; font-weight:800; color:#fff;'>⭐ ${totalPts} <span style='font-size:12px; color:#f472b6;'>คะแนน</span></div>
-                                </div>
-                                <div style='text-align:right;'>
-                                    <div style='font-size:11px; color:#94a3b8;'>คะแนนสูงสุด</div>
-                                    <div style='font-size:15px; font-weight:700; color:#38bdf8;'>🏆 ${highPts} แต้ม</div>
-                                </div>
-                            </div>
-                        `}
+                        ` : ""}
 
                         <div style='font-size:13px; font-weight:700; color:#ff75b5; margin-bottom:10px; display:flex; align-items:center; gap:6px;'>
                             <span>🎯</span> เลือกระดับความยาก (ตอบถูกได้ +1 คะแนน/ข้อ)
@@ -1870,6 +1859,27 @@
                         <button class='btn-portal-action' style='background:linear-gradient(135deg, #a21caf, #ff2a85); margin-bottom:10px;' onclick='QuizEngine.openLeaderboard()'>
                             🏆 ดูตารางแรงค์ (Leaderboard)
                         </button>
+
+                        <!-- Score Stats Bar (ล่างสุด สำหรับ player เท่านั้น) -->
+                        ${!this.isAdmin() ? `
+                            <div style='
+                                display:flex;
+                                background: rgba(255,42,133,0.08);
+                                border: 1px solid rgba(255,42,133,0.2);
+                                border-radius: 12px;
+                                overflow: hidden;
+                                margin-top: 4px;
+                            '>
+                                <div style='flex:1; padding:10px 12px; border-right:1px solid rgba(255,42,133,0.15);'>
+                                    <div style='font-size:10px; color:#ff75b5; font-weight:600; margin-bottom:3px; text-transform:uppercase;'>คะแนนสะสมรวม</div>
+                                    <div style='font-size:19px; font-weight:900; color:#fff;'>⭐ ${totalPts} <span style='font-size:11px; color:#f472b6; font-weight:600;'>คะแนน</span></div>
+                                </div>
+                                <div style='flex:1; padding:10px 12px; text-align:right;'>
+                                    <div style='font-size:10px; color:#94a3b8; font-weight:600; margin-bottom:3px; text-transform:uppercase;'>คะแนนสูงสุด</div>
+                                    <div style='font-size:15px; font-weight:700; color:#38bdf8;'>🏆 ${highPts} <span style='font-size:11px; font-weight:600;'>แต้ม</span></div>
+                                </div>
+                            </div>
+                        ` : ""}
                     </div>
                 `;
             },
